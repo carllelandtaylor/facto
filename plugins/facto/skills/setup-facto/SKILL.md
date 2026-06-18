@@ -1,6 +1,6 @@
 ---
 name: setup-facto
-description: "Set up the Facto factory mechanics. Adds the task-* worktree commands to your shell PATH (once per machine), then optionally wires the current repo to a GitHub Issues + Project tracker by writing .facto/settings.json and dropping worktree setup/teardown hook stubs. Run it once after installing the facto plugin, and again in each new project you want tracker integration for. Invoke with /facto:setup-facto. Procedure skill (follow the phases in order)."
+description: "Set up the Facto mechanics. Adds the task-* worktree commands to your shell PATH (once per machine), then optionally wires the current repo to a GitHub Issues + Project tracker by writing .facto/settings.json and dropping worktree setup/teardown hook stubs. Run it once after installing the facto plugin, and again in each new project you want tracker integration for. Invoke with /facto:setup-facto. Procedure skill (follow the phases in order)."
 disable-model-invocation: true
 color: yellow
 ---
@@ -23,7 +23,7 @@ Derive the absolute path of the `facto` plugin from this skill's own location, a
 ```bash
 FACTO_PLUGIN="$(cd "$(dirname "$(readlink -f ~/.claude/skills/facto/skills/setup-facto/SKILL.md)")"/../.. && pwd)"
 FACTO_BIN="$FACTO_PLUGIN/bin"
-test -x "$FACTO_BIN/task-start.sh" || { echo "ERROR: resolved '$FACTO_BIN' but task-start.sh isn't there — is the facto plugin symlinked from your factory checkout?" >&2; exit 1; }
+test -x "$FACTO_BIN/task-start.sh" || { echo "ERROR: resolved '$FACTO_BIN' but task-start.sh isn't there — is the facto plugin symlinked from your Facto checkout?" >&2; exit 1; }
 echo "Facto bin: $FACTO_BIN"
 ```
 
@@ -74,7 +74,7 @@ Ask the user whether the **current repo** should use GitHub Issues + a GitHub Pr
    - Display name (the project's title, e.g. `Notepad Pro Roadmap`)
    - Whether the project already exists. If it does, ask for its number. If it doesn't, offer to create it now — `gh project create --title "<name>" --owner "<owner>" --format json` — and read the `number` from the output.
 3. **Status field name** — default: `Status`. Ask if they want a different name.
-4. **Status option names** — default the five used in this factory (`Backlog`, `In progress`, `In review`, `In test`, `Done`). Ask whether to rename any.
+4. **Status option names** — default the five used in Facto (`Backlog`, `In progress`, `In review`, `In test`, `Done`). Ask whether to rename any.
 5. **`pr_link_format`** — ask whether `facto:pr` should use `Resolves #{issue}` (auto-close on merge, GitHub default) or `Refs #{issue}` (no auto-close). Default: `Resolves #{issue}`.
 
 Write `.facto/settings.json` in the repo root (`git rev-parse --show-toplevel`) with the answered values. Use this skeleton (substitute the user's answers):

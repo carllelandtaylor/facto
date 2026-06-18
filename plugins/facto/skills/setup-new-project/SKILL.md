@@ -1,6 +1,6 @@
 ---
 name: setup-new-project
-description: "Use this skill to plan and set up a brand-new project from scratch. Conducts a comprehensive interview to define the problem, users, features, UI design, and tech stack, then produces PRODUCT-REQUIREMENTS.md and TECHNICAL-DESIGN.md as the project's foundation. For new features in an existing project, use /facto:plan-product instead; to wire a project up to the factory's task tracker, use /facto:setup-facto. Invoke with /facto:setup-new-project. Procedure skill (follow the phases in order)."
+description: "Use this skill to plan and set up a brand-new project from scratch. Conducts a comprehensive interview to define the problem, users, features, UI design, and tech stack, then produces PRODUCT-REQUIREMENTS.md and TECHNICAL-DESIGN.md as the project's foundation. For new features in an existing project, use /facto:plan-product instead; to wire a project up to Facto's task tracker, use /facto:setup-facto. Invoke with /facto:setup-new-project. Procedure skill (follow the phases in order)."
 color: purple
 ---
 
@@ -151,7 +151,7 @@ After Phase 5 is complete, generate **TECHNICAL-DESIGN.md**:
 - Future Technical Enhancements
 - Development Principles
 
-Under **Development Workflow**, record whether the project will use the factory's GitHub Issues + Project tracker. If it will, tell the user to run `/facto:setup-facto` in the repo to write `.facto/settings.json` and wire up the pipeline (`facto:plan-implementation`, `facto:implement`, `facto:pr`, and `task-start --issue`); without it those tracker behaviors silently no-op. If it won't, note `Factory config: none` so future agents don't re-ask.
+Under **Development Workflow**, record whether the project will use Facto's GitHub Issues + Project tracker. If it will, tell the user to run `/facto:setup-facto` in the repo to write `.facto/settings.json` and wire up the pipeline (`facto:plan-implementation`, `facto:implement`, `facto:pr`, and `task-start --issue`); without it those tracker behaviors silently no-op. If it won't, note `Facto config: none` so future agents don't re-ask.
 
 ---
 

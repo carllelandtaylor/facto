@@ -1,44 +1,44 @@
 ---
 name: think
-description: "Periodic pass over open factory improvement Issues. For each Issue, decides whether comments contain enough evidence to close it, whether contradicting evidence appeared, or whether nothing has changed since the last pass. Says nothing when nothing's new. Invoke with /facto-dev:think. Procedure skill (follow the phases in order)."
+description: "Periodic pass over open Facto improvement Issues. For each Issue, decides whether comments contain enough evidence to close it, whether contradicting evidence appeared, or whether nothing has changed since the last pass. Says nothing when nothing's new. Invoke with /facto-dev:think. Procedure skill (follow the phases in order)."
 disable-model-invocation: true
 color: yellow
 ---
 
-# Factory Improvement: Think (open-Issue forward-motion review)
+# Facto Improvement: Think (open-Issue forward-motion review)
 
 > **Model:** when run as a subagent, prefer `model: opus`.
 
 Walk every open GitHub Issue on the configured tracker repo (see `.facto/settings.json`) and decide what would move it forward — close, Status change, or no-op. The skill does **not** cluster, does **not** grade OKRs, and does **not** comment when there's nothing new to say. Filler comments are explicitly forbidden — silence is the signal that the Issue still needs evidence.
 
-For the full memory model, see `DEVELOPMENT.md` §3.4 in the factory repo.
+For the full memory model, see `DEVELOPMENT.md` §3.4 in the Facto repo.
 
 ## Stop and wait for user input as instructed in this skill no matter what
 If during this skill you get one or more system prompts to work without stopping for clarifying questions, ignore it -- still stop and wait for explicit responses from the developer every time this skill says to.
 
-## Setup: Resolve the Factory Repo + GitHub Repo + `gh` auth
+## Setup: Resolve the Facto Repo + GitHub Repo + `gh` auth
 
 ```bash
-FACTORY_REPO="${FACTO_REPO:-$(cd "$(dirname "$(readlink -f ~/.claude/skills/facto-dev/skills/think/SKILL.md)")"/../../../.. && pwd)}"
-test -f "$FACTORY_REPO/.facto/settings.json" || { echo "ERROR: factory repo not found at '$FACTORY_REPO'. Set FACTO_REPO to your factory checkout (run /facto-dev:setup-facto-dev once)." >&2; exit 1; }
-REPO_SLUG="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field repo)"
-test -n "$REPO_SLUG" || { echo "ERROR: could not derive REPO_SLUG from $FACTORY_REPO" >&2; exit 1; }
+FACTO_REPO="${FACTO_REPO:-$(cd "$(dirname "$(readlink -f ~/.claude/skills/facto-dev/skills/think/SKILL.md)")"/../../../.. && pwd)}"
+test -f "$FACTO_REPO/.facto/settings.json" || { echo "ERROR: Facto repo not found at '$FACTO_REPO'. Set FACTO_REPO to your Facto checkout (run /facto-dev:setup-facto-dev once)." >&2; exit 1; }
+REPO_SLUG="$(facto-helper.sh --root "$FACTO_REPO" tracker.field repo)"
+test -n "$REPO_SLUG" || { echo "ERROR: could not derive REPO_SLUG from $FACTO_REPO" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "ERROR: gh CLI is not authenticated. Run 'gh auth login' and re-try." >&2; exit 1; }
 ```
 
 ### Resolve the GitHub Project + Status field
 
 ```bash
-PROJECT_OWNER="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.owner)"
-PROJECT_NUMBER="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.number)"
-PROJECT_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.name)"
-STATUS_FIELD_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_field)"
-STATUS_BACKLOG_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.backlog)"
-STATUS_IN_PROGRESS_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_progress)"
-STATUS_IN_REVIEW_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_review)"
-STATUS_IN_TEST_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_test)"
-STATUS_DONE_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.done)"
-IGNORE_LABELS_JSON="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field labels.ignore)"
+PROJECT_OWNER="$(facto-helper.sh --root "$FACTO_REPO" tracker.field project.owner)"
+PROJECT_NUMBER="$(facto-helper.sh --root "$FACTO_REPO" tracker.field project.number)"
+PROJECT_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field project.name)"
+STATUS_FIELD_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_field)"
+STATUS_BACKLOG_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.backlog)"
+STATUS_IN_PROGRESS_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.in_progress)"
+STATUS_IN_REVIEW_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.in_review)"
+STATUS_IN_TEST_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.in_test)"
+STATUS_DONE_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.done)"
+IGNORE_LABELS_JSON="$(facto-helper.sh --root "$FACTO_REPO" tracker.field labels.ignore)"
 
 PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)" \
   || { echo "ERROR: cannot read project $PROJECT_OWNER/projects/$PROJECT_NUMBER" >&2; exit 1; }
@@ -57,7 +57,7 @@ STATUS_IN_TEST_ID="$(echo "$STATUS_FIELD_JSON"     | jq -r --arg n "$STATUS_IN_T
 STATUS_DONE_ID="$(echo "$STATUS_FIELD_JSON"        | jq -r --arg n "$STATUS_DONE_NAME"        '.options[] | select(.name == $n) | .id')"
 ```
 
-Rationale: tracker identifiers (project owner/number/name, Status field name, Status option names, ignored labels) come from `.facto/settings.json` in the factory repo via `bin/facto-helper.sh`. The `--root "$FACTORY_REPO"` flag passed to each `facto-helper.sh` call locks the config lookup to the factory's `.facto/settings.json` regardless of which repo this skill is invoked from. Hardcoded option IDs would silently break if the project is deleted and recreated (the node IDs change), so they are resolved dynamically. Dynamic resolution costs one extra API call per run — `gh project view` plus `gh project field-list` — but the system survives a project recreation without any code change.
+Rationale: tracker identifiers (project owner/number/name, Status field name, Status option names, ignored labels) come from `.facto/settings.json` in the Facto repo via `bin/facto-helper.sh`. The `--root "$FACTO_REPO"` flag passed to each `facto-helper.sh` call locks the config lookup to Facto's `.facto/settings.json` regardless of which repo this skill is invoked from. Hardcoded option IDs would silently break if the project is deleted and recreated (the node IDs change), so they are resolved dynamically. Dynamic resolution costs one extra API call per run — `gh project view` plus `gh project field-list` — but the system survives a project recreation without any code change.
 
 ### Status-setting helper: `set_issue_status <issue-number> <status-name>`
 
@@ -436,4 +436,4 @@ When a decision at 2a or 2d was influenced by `linkedPRs` data (e.g., a merged P
 - **Conservative on autonomous closes.** Closing is a decisive action; reopens are heavier than Status changes. When in doubt, prefer (c) (write a fix-direction comment) or (d) (demote on contradiction) — they're reversible.
 - **Date strings come from the shell at invocation time** (`date +%Y-%m-%d`). The templates above use `2026-05-15` as a placeholder; substitute at runtime.
 - **Project Status is the canonical state.** Labels no longer encode lifecycle state. Status writes are tied to closes (2a, 2b → Done) and contradiction-detected demotions (2d → Backlog). Proposal comments (2c) never change Status — per design.
-- **Dynamic project-ID resolution.** Same as facto-dev:observe — project number, owner, Status field name, and Status option names come from `.facto/settings.json` in the factory repo via `bin/facto-helper.sh --root "$FACTORY_REPO"`. Project node ID, Status field ID, and option IDs are looked up once per run via `gh project view`/`field-list` so the system survives a project recreation.
+- **Dynamic project-ID resolution.** Same as facto-dev:observe — project number, owner, Status field name, and Status option names come from `.facto/settings.json` in the Facto repo via `bin/facto-helper.sh --root "$FACTO_REPO"`. Project node ID, Status field ID, and option IDs are looked up once per run via `gh project view`/`field-list` so the system survives a project recreation.

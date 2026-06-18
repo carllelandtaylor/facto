@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# fi-task-test.sh — point the factory's global install at the current worktree.
+# fi-task-test.sh — point Facto's global install at the current worktree.
 #
-# The factory ships as two Claude Code skills-directory plugins:
+# Facto ships as two Claude Code skills-directory plugins:
 #
 #     <repo>/plugins/facto       (public plugin: skills/ + bin/)
 #     <repo>/plugins/facto-dev   (developer plugin: skills/ + bin/)
@@ -19,7 +19,7 @@ set -euo pipefail
 #
 #   • Run from inside a worktree: re-points ~/.claude/skills/facto and
 #     ~/.claude/skills/facto-dev at <worktree>/plugins/facto and
-#     <worktree>/plugins/facto-dev, so the factory's global install resolves to
+#     <worktree>/plugins/facto-dev, so Facto's global install resolves to
 #     the worktree's in-progress copy. Only does this when the main checkout is
 #     on the default branch, up to date with origin, and has no uncommitted
 #     changes.
@@ -27,8 +27,8 @@ set -euo pipefail
 #   • Run from the main checkout: reverts both install symlinks back to the main
 #     checkout's plugins/facto and plugins/facto-dev.
 #
-# Factory-development-only: refuses to run in repos that merely consume the
-# factory (they have no tracked plugins/facto and plugins/facto-dev dirs).
+# Facto-development-only: refuses to run in repos that merely consume Facto
+# (they have no tracked plugins/facto and plugins/facto-dev dirs).
 #
 # This script is EXECUTED, not sourced — it changes nothing about the caller's
 # shell. It only manipulates the two ~/.claude/skills/* install symlinks; it
@@ -40,21 +40,21 @@ usage() {
   cat <<'EOF'
 Usage: fi-task-test.sh [-h|--help]
 
-Factory-development-only helper. Run with no arguments:
+Facto-development-only helper. Run with no arguments:
 
-  • From inside a task worktree it re-points the factory's two install symlinks
+  • From inside a task worktree it re-points Facto's two install symlinks
 
         ~/.claude/skills/facto      -> <worktree>/plugins/facto
         ~/.claude/skills/facto-dev  -> <worktree>/plugins/facto-dev
 
-    so the factory's global install resolves to this worktree's in-progress
+    so Facto's global install resolves to this worktree's in-progress
     skills/bin. This is done only if the main checkout is on the default
     branch, up to date with origin, and has no uncommitted changes.
 
   • From the main checkout it reverts both install symlinks back to the main
     checkout's plugins/facto and plugins/facto-dev.
 
-Only works in the factory repo itself (a repo with tracked plugins/facto and
+Only works in the Facto repo itself (a repo with tracked plugins/facto and
 plugins/facto-dev directories).
 EOF
 }
@@ -65,7 +65,7 @@ case "${1:-}" in
   *) echo "ERROR: unknown argument '$1'" >&2; usage >&2; exit 1 ;;
 esac
 
-# --- The factory's two plugins and their install symlinks ---
+# --- Facto's two plugins and their install symlinks ---
 PLUGINS=(facto facto-dev)
 SKILLS_DIR="$HOME/.claude/skills"
 
@@ -77,12 +77,12 @@ fi
 
 MAIN_ROOT="$(cd "$(git rev-parse --git-common-dir)/.." && pwd)"
 
-# --- Factory-repo guard: the main checkout must track both plugin dirs ---
+# --- Facto-repo guard: the main checkout must track both plugin dirs ---
 for p in "${PLUGINS[@]}"; do
   if ! git -C "$MAIN_ROOT" ls-tree -d --name-only HEAD "plugins/$p" 2>/dev/null | grep -qx "plugins/$p"; then
-    echo "ERROR: this is not the factory repo — no tracked 'plugins/$p' directory at $MAIN_ROOT." >&2
-    echo "       fi-task-test is only for developing the factory itself; repos that consume the" >&2
-    echo "       factory don't have the plugins/facto and plugins/facto-dev sources." >&2
+    echo "ERROR: this is not the Facto repo — no tracked 'plugins/$p' directory at $MAIN_ROOT." >&2
+    echo "       fi-task-test is only for developing Facto itself; repos that consume Facto" >&2
+    echo "       don't have the plugins/facto and plugins/facto-dev sources." >&2
     exit 1
   fi
 done
@@ -114,7 +114,7 @@ if [[ "$GIT_DIR_ABS" == "$COMMON_DIR_ABS" ]]; then
   # ── Reset mode (in the main checkout) — no preconditions; this is the escape hatch ──
   mkdir -p "$SKILLS_DIR"
   repoint "$MAIN_ROOT"
-  echo "Reset: the factory install now resolves to the main checkout at $MAIN_ROOT."
+  echo "Reset: Facto's install now resolves to the main checkout at $MAIN_ROOT."
   exit 0
 fi
 
@@ -164,5 +164,5 @@ fi
 mkdir -p "$SKILLS_DIR"
 repoint "$WORKTREE_ROOT"
 
-echo "The factory's ~/.claude/skills/{facto,facto-dev} install now resolves to this worktree."
+echo "Facto's ~/.claude/skills/{facto,facto-dev} install now resolves to this worktree."
 echo "Run 'fi-task-test.sh' from the main checkout to revert."

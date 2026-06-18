@@ -7,13 +7,13 @@ Quick reference for Claude Code working in this repo. Avoid duplicating info alr
 This repo is the Facto software factory — two Claude Code skills-directory plugins under `plugins/`:
 
 - **`plugins/facto/`** — public plugin. Pipeline skills (`/facto:<name>`) in `skills/`; user-facing worktree scripts (`facto-helper.sh`, `task-start.sh`, …) in `bin/`.
-- **`plugins/facto-dev/`** — developer-only plugin. The factory-improvement skills (`/facto-dev:<name>`) in `skills/`; developer scripts in `bin/`.
+- **`plugins/facto-dev/`** — developer-only plugin. The Facto-improvement skills (`/facto-dev:<name>`) in `skills/`; developer scripts in `bin/`.
 
-For factory **usage** (setup, workflows, the full skill catalog) see [README.md](README.md). For the factory's **design and improvement system** see [DEVELOPMENT.md](DEVELOPMENT.md).
+For Facto **usage** (setup, workflows, the full skill catalog) see [README.md](README.md). For Facto's **design and improvement system** see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Per-task planning docs
 
-All planning docs for one task (product requirements, design, architecture, implementation plan) live together in a single per-task directory: `tasks/<task-slug>/`, with fixed filenames (`product-requirements.md`, `design-decisions.html`, `design-mock.html`, `design-inventory.md`, `architecture.md`, `implementation-plan.md`). (This repo overrides the factory default `facto-tasks/` to `tasks/` via `"tasks_dir"` in `.facto/settings.json` — it dogfoods the override.) Resolve the directory with `facto-helper.sh task-dir` — never hand-build the slug. The producing skill commits its doc when the developer accepts it. Shared, product-wide inputs such as the files under `docs/design/` (the design system and the evergreen design docs) stay outside the task directory.
+All planning docs for one task (product requirements, design, architecture, implementation plan) live together in a single per-task directory: `tasks/<task-slug>/`, with fixed filenames (`product-requirements.md`, `design-decisions.html`, `design-mock.html`, `design-inventory.md`, `architecture.md`, `implementation-plan.md`). (This repo overrides Facto's default `facto-tasks/` to `tasks/` via `"tasks_dir"` in `.facto/settings.json` — it dogfoods the override.) Resolve the directory with `facto-helper.sh task-dir` — never hand-build the slug. The producing skill commits its doc when the developer accepts it. Shared, product-wide inputs such as the files under `docs/design/` (the design system and the evergreen design docs) stay outside the task directory.
 
 `<task-slug>` format: issue-backed tasks are `<issue-number>-<kebab-description>` (e.g. `111-c-observe`). Tasks with no issue are prefixed `UNKNOWN-` where the number would go (e.g. `UNKNOWN-c-design-mock`), so a missing issue is explicit rather than looking like a dropped number. This is consistent everywhere: `task-start.sh` names no-issue worktrees and branches the same way (`feat/UNKNOWN-…`), and `facto-helper.sh task-slug` normalizes any bare slug to the `UNKNOWN-` form.
 

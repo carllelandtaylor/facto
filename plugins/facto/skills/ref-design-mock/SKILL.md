@@ -14,7 +14,7 @@ How to turn the design-mock template into a filled-in, viewable design file.
 
 ## Supporting files
 
-- **Canvas template** — `[factory] claude/skills/ref-design-mock/template-task-spec.html`: a self-contained HTML canvas (inlined pan/zoom CSS+JS, a device-frame kit, the canonical bands, and a `:root` token-placeholder block) for designing a new feature in a task directory. [template-task-spec.html](template-task-spec.html)
+- **Canvas template** — `[facto] claude/skills/ref-design-mock/template-task-spec.html`: a self-contained HTML canvas (inlined pan/zoom CSS+JS, a device-frame kit, the canonical bands, and a `:root` token-placeholder block) for designing a new feature in a task directory. [template-task-spec.html](template-task-spec.html)
 
 ## What you're working with
 
@@ -28,9 +28,9 @@ The template fixes the *structure* (the bands, the frame kit, the token vocabula
 
 The calling skill supplies the destination directory `<dest-dir>` — treat it as an opaque location; how that directory is chosen is the caller's concern, not this skill's.
 
-1. Copy `[factory] claude/skills/ref-design-mock/template-task-spec.html` → `<dest-dir>/design-mock.html`. (Fixed filename — no date in the name.)
-2. Put any fonts or images the design references in `<dest-dir>/assets/`, and reference them relatively (`assets/...`) so they resolve when served from `<dest-dir>`. CDN-hosted webfonts don't need bundling (the factory is online-only).
-3. From here on, edit **only the copy**. The factory template is read-only.
+1. Copy `[facto] claude/skills/ref-design-mock/template-task-spec.html` → `<dest-dir>/design-mock.html`. (Fixed filename — no date in the name.)
+2. Put any fonts or images the design references in `<dest-dir>/assets/`, and reference them relatively (`assets/...`) so they resolve when served from `<dest-dir>`. CDN-hosted webfonts don't need bundling (Facto is online-only).
+3. From here on, edit **only the copy**. The Facto template is read-only.
 
 ---
 
@@ -124,4 +124,4 @@ A close-looking mock is not proof. Render the mock at the device's exact pixel r
 
 The output file is self-contained, so editing it never breaks anything to build. Make changes in place with `Edit` (no need to regenerate from the template), then re-serve to re-inspect.
 
-*(Rules for editing the shared `[factory] template-task-spec.html` itself — keeping it project-agnostic, the load-bearing CSS, the `fit()` timing — live in that file's top-of-file comment, where a maintainer editing it will see them.)*
+*(Rules for editing the shared `[facto] template-task-spec.html` itself — keeping it project-agnostic, the load-bearing CSS, the `fit()` timing — live in that file's top-of-file comment, where a maintainer editing it will see them.)*

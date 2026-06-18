@@ -1,11 +1,11 @@
 ---
 name: status
-description: "Show the current state of the factory improvement memory: open GitHub Issues grouped by Project Status, counts of recently-closed Issues, plus OKR status from OKRS.md. Read-only. Invoke with /facto-dev:status. Procedure skill (follow the phases in order)."
+description: "Show the current state of the Facto improvement memory: open GitHub Issues grouped by Project Status, counts of recently-closed Issues, plus OKR status from OKRS.md. Read-only. Invoke with /facto-dev:status. Procedure skill (follow the phases in order)."
 disable-model-invocation: true
 color: yellow
 ---
 
-# Factory Improvement: Status
+# Facto Improvement: Status
 
 > **Model:** when run as a subagent, prefer `model: sonnet`.
 
@@ -13,42 +13,42 @@ One-shot summary of the improvement memory. Lists open GitHub Issues on the conf
 
 This skill is **read-only** — it does not modify any Issues, labels, OKRs, or files. It exists to give the developer a quick view of where the loop stands before deciding what to run next (e.g. `/facto-dev:think` to walk open Issues, `/facto-dev:observe` to file something new).
 
-For the full memory model, see `DEVELOPMENT.md` §3.4 in the factory repo.
+For the full memory model, see `DEVELOPMENT.md` §3.4 in the Facto repo.
 
-## Setup: Resolve the Factory Repo + GitHub Repo + `gh` auth
+## Setup: Resolve the Facto Repo + GitHub Repo + `gh` auth
 
 ```bash
-FACTORY_REPO="${FACTO_REPO:-$(cd "$(dirname "$(readlink -f ~/.claude/skills/facto-dev/skills/status/SKILL.md)")"/../../../.. && pwd)}"
-test -f "$FACTORY_REPO/.facto/settings.json" || { echo "ERROR: factory repo not found at '$FACTORY_REPO'. Set FACTO_REPO to your factory checkout (run /facto-dev:setup-facto-dev once)." >&2; exit 1; }
-REPO_SLUG="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field repo)"
-test -n "$REPO_SLUG" || { echo "ERROR: could not derive REPO_SLUG from $FACTORY_REPO" >&2; exit 1; }
+FACTO_REPO="${FACTO_REPO:-$(cd "$(dirname "$(readlink -f ~/.claude/skills/facto-dev/skills/status/SKILL.md)")"/../../../.. && pwd)}"
+test -f "$FACTO_REPO/.facto/settings.json" || { echo "ERROR: Facto repo not found at '$FACTO_REPO'. Set FACTO_REPO to your Facto checkout (run /facto-dev:setup-facto-dev once)." >&2; exit 1; }
+REPO_SLUG="$(facto-helper.sh --root "$FACTO_REPO" tracker.field repo)"
+test -n "$REPO_SLUG" || { echo "ERROR: could not derive REPO_SLUG from $FACTO_REPO" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "ERROR: gh CLI is not authenticated. Run 'gh auth login' and re-try." >&2; exit 1; }
 ```
 
-(`gh repo view` does not accept `-R` with a local directory path. The subshell derives the slug from the factory repo's git remote without changing cwd.)
+(`gh repo view` does not accept `-R` with a local directory path. The subshell derives the slug from the Facto repo's git remote without changing cwd.)
 
 ### Resolve the GitHub Project + Status field
 
 facto-dev:status reads Status; never writes. The `set_issue_status` helper from facto-dev:observe/facto-dev:think is not needed here.
 
 ```bash
-PROJECT_OWNER="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.owner)"
-PROJECT_NUMBER="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.number)"
-PROJECT_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.name)"
-STATUS_FIELD_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_field)"
-STATUS_BACKLOG_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.backlog)"
-STATUS_IN_PROGRESS_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_progress)"
-STATUS_IN_REVIEW_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_review)"
-STATUS_IN_TEST_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_test)"
-STATUS_DONE_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.done)"
-IGNORE_LABELS_JSON="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field labels.ignore)"
+PROJECT_OWNER="$(facto-helper.sh --root "$FACTO_REPO" tracker.field project.owner)"
+PROJECT_NUMBER="$(facto-helper.sh --root "$FACTO_REPO" tracker.field project.number)"
+PROJECT_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field project.name)"
+STATUS_FIELD_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_field)"
+STATUS_BACKLOG_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.backlog)"
+STATUS_IN_PROGRESS_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.in_progress)"
+STATUS_IN_REVIEW_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.in_review)"
+STATUS_IN_TEST_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.in_test)"
+STATUS_DONE_NAME="$(facto-helper.sh --root "$FACTO_REPO" tracker.field status_values.done)"
+IGNORE_LABELS_JSON="$(facto-helper.sh --root "$FACTO_REPO" tracker.field labels.ignore)"
 
 PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)" \
   || { echo "ERROR: cannot read project $PROJECT_OWNER/projects/$PROJECT_NUMBER" >&2; exit 1; }
 test -n "$PROJECT_ID" || { echo "ERROR: project ID is empty for $PROJECT_OWNER/projects/$PROJECT_NUMBER" >&2; exit 1; }
 ```
 
-Rationale: facto-dev:status never writes Status, so the Status field option IDs (`STATUS_*_ID`) are not needed and are not resolved. `PROJECT_ID` is resolved here because it is needed if the fallback `gh project item-list` path is taken in Phase 1. Status option names are read directly from `.status.name` in the `projectItems` JSON without needing the option IDs. All tracker configuration (project number, owner, status field name, status option names, and ignore labels) is sourced from `.facto/settings.json` in the factory repo — the single source of truth for factory tracker settings. The `--root "$FACTORY_REPO"` flag passed to each `facto-helper.sh` call locks the config lookup to the factory's `.facto/settings.json` regardless of which repo this skill is invoked from.
+Rationale: facto-dev:status never writes Status, so the Status field option IDs (`STATUS_*_ID`) are not needed and are not resolved. `PROJECT_ID` is resolved here because it is needed if the fallback `gh project item-list` path is taken in Phase 1. Status option names are read directly from `.status.name` in the `projectItems` JSON without needing the option IDs. All tracker configuration (project number, owner, status field name, status option names, and ignore labels) is sourced from `.facto/settings.json` in the Facto repo — the single source of truth for Facto tracker settings. The `--root "$FACTO_REPO"` flag passed to each `facto-helper.sh` call locks the config lookup to Facto's `.facto/settings.json` regardless of which repo this skill is invoked from.
 
 ---
 
@@ -90,7 +90,7 @@ Fallback: if `projectItems` is absent or empty across all Issues, run `gh projec
 Also read OKRs from the file:
 
 ```bash
-cat "$FACTORY_REPO/OKRS.md"
+cat "$FACTO_REPO/OKRS.md"
 ```
 
 Parse each `## <slug> <dot>` section to extract: the slug, the objective-level status dot (🟢 / 🟡 / 🔴 / ❓), the `**Description:** ...` line, the `**Last updated:** ...` line, and the markdown table of KRs (two columns: `Target (KR)` and `Current status`). Each KR row carries its own status dot in the Current status cell. Survey-measured KRs are flagged with 📋 in the Target cell. **Do not assess or compute any status — this skill is read-only and prints whatever is on disk.**
@@ -109,7 +109,7 @@ While walking the fetched Issues, flag the following. Today's date comes from `d
 - **Backlog candidates ready to move** — open Issues in `Backlog` Status with **more than 3 comments**. High comment count suggests enough evidence has accumulated for a fix direction to be proposed or work to begin.
 - **Stale OKR statuses** — OKRs in `OKRS.md` whose `**Last updated:** ...` date is more than 30 days before today (or whose value is still `_n/a_` and `OKRS.md` was created more than 30 days ago), **excluding** OKRs whose objective-level dot is ❓ (those have no KRs yet and are intentionally not assessed).
 
-These thresholds are intentionally rough — they're hints, not rules. Don't suppress an Issue from the main listing just because it's flagged for attention. Labels in `$IGNORE_LABELS_JSON` (from `.facto/settings.json`) are ignored everywhere — they're plan-validation markers, not factory state.
+These thresholds are intentionally rough — they're hints, not rules. Don't suppress an Issue from the main listing just because it's flagged for attention. Labels in `$IGNORE_LABELS_JSON` (from `.facto/settings.json`) are ignored everywhere — they're plan-validation markers, not Facto state.
 
 ---
 
@@ -118,7 +118,7 @@ These thresholds are intentionally rough — they're hints, not rules. Don't sup
 Print a single report. Suggested layout:
 
 ```
-Factory improvement memory — status as of <YYYY-MM-DD>
+Facto improvement memory — status as of <YYYY-MM-DD>
 
 OKR Status
   - <slug> <objective dot>: <description> — last updated <date>

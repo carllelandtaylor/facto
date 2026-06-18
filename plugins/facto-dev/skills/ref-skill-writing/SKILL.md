@@ -4,7 +4,7 @@ description: "Use when writing, reviewing or editing a skill. This skill explain
 color: yellow
 ---
 
-# Writing and reviewing factory skills
+# Writing and reviewing Facto skills
 
 > **Model:** when run as a subagent, prefer `model: opus`.
 

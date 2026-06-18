@@ -70,7 +70,7 @@ Create the inventory file in the task directory from the template:
 ```bash
 INVENTORY="$(facto-helper.sh task-dir)/design-inventory.md"
 mkdir -p "$(dirname "$INVENTORY")"
-cp "[factory] plugins/facto/skills/setup-design/template-inventory.md" "$INVENTORY"
+cp "[facto] plugins/facto/skills/setup-design/template-inventory.md" "$INVENTORY"
 ```
 
 Into the inventory file, write the info you've collected so far.
@@ -128,7 +128,7 @@ Set the `Phase 4` task to `in_progress`.
 Create `docs/design/index.md` from the template and fill it in so it lists every surface, its overall design docs, and every view spec you produced:
 
 ```bash
-cp "[factory] plugins/facto/skills/setup-design/template-index.md" docs/design/index.md
+cp "[facto] plugins/facto/skills/setup-design/template-index.md" docs/design/index.md
 ```
 
 Follow the template's instructions and `/facto:ref-design-system` "The Index" for the format.

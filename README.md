@@ -4,7 +4,7 @@ This is the user guide for Facto, an experimental agentic software development s
 
 Facto is a set of composable Claude Code skills and shell scripts that guide agents through development. The goal is to learn how far customizing a harness like Claude Code can be pushed to build high-quality software with minimal human intervention.
 
-*Working on the factory itself, not just using it? See [DEVELOPMENT.md](DEVELOPMENT.md).*
+*Working on Facto itself, not just using it? See [DEVELOPMENT.md](DEVELOPMENT.md).*
 
 ### Contents
 
@@ -143,7 +143,7 @@ Facto skills fall into two categories (some skills are both):
 Run once, per project or app, to establish a baseline; then use the funnel and pipeline skills for ongoing work.
 
 ###### `/facto:setup-facto`
-Configures your project's repo to use Facto. Run this once in each project repo in which you want to use Facto. Configures worktree commands, issue tracking and worktree setup/teardown for isolation. Sets up the factory mechanics themselves.
+Configures your project's repo to use Facto. Run this once in each project repo in which you want to use Facto. Configures worktree commands, issue tracking and worktree setup/teardown for isolation. Sets up the Facto mechanics themselves.
 
 ###### `/facto:setup-new-project`
 Bootstrap the product direction and technical architecture of a brand-new project. Comprehensive interview about the problem, target users, features, UI design, and tech stack, then produces foundational `PRODUCT-REQUIREMENTS.md` and `TECHNICAL-DESIGN.md` documents that anchor the project.

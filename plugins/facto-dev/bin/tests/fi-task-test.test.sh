@@ -1,7 +1,7 @@
 #!/bin/bash
 # fi-task-test.test.sh — sandbox tests for bin/fi-task-test.sh
 #
-# fi-task-test.sh re-points the factory's two install symlinks
+# fi-task-test.sh re-points Facto's two install symlinks
 #     ~/.claude/skills/facto      -> <checkout>/plugins/facto
 #     ~/.claude/skills/facto-dev  -> <checkout>/plugins/facto-dev
 # at either a worktree (link mode) or the main checkout (reset mode).
@@ -12,7 +12,7 @@
 #
 # Builds throwaway git repos (with a local bare remote so `fetch` / origin/main
 # work offline) and exercises the behaviours: link, reset, precondition failure
-# (dirty / wrong-branch main aborts), and the factory-repo guard.
+# (dirty / wrong-branch main aborts), and the Facto-repo guard.
 
 set -uo pipefail  # not -e: we want to run every case and tally failures
 
@@ -66,7 +66,7 @@ marker_reads() {
 }
 
 # make_repo <yes|no> <marker> — create a repo; "yes" tracks plugins/facto and
-# plugins/facto-dev (the factory structure), each with a marker file. Prints the
+# plugins/facto-dev (the Facto structure), each with a marker file. Prints the
 # repo path then its bare-remote path, one per line.
 make_repo() {
   local with_plugins="$1" marker="$2" tmp p
@@ -75,7 +75,7 @@ make_repo() {
   git -C "$tmp" config user.email "test@example.com"
   git -C "$tmp" config user.name "test"
   echo "init" > "$tmp/README.md"
-  # Mirror the real factory repo: worktrees live under .facto/worktrees/ and
+  # Mirror the real Facto repo: worktrees live under .facto/worktrees/ and
   # must be gitignored, otherwise they'd show as untracked in the main checkout.
   echo ".facto/worktrees/" > "$tmp/.gitignore"
   if [[ "$with_plugins" == "yes" ]]; then
@@ -111,7 +111,7 @@ add_worktree() {
   printf '%s\n' "$wt"
 }
 
-# ── Setup: factory-like repo with a worktree ─────────────────────────────────
+# ── Setup: Facto-like repo with a worktree ─────────────────────────────────
 { read -r REPO; read -r REPO_BARE; } < <(make_repo yes main-version); _TMPS+=("$REPO" "$REPO_BARE")
 WT="$(add_worktree "$REPO" "158-demo" "worktree-version")"
 
@@ -152,14 +152,14 @@ else
 fi
 git -C "$REPO" checkout main --quiet
 
-# ── Case 5: factory guard — repo with no tracked plugins/ dirs is refused ────
+# ── Case 5: Facto-repo guard — repo with no tracked plugins/ dirs is refused ────
 { read -r REPO2; read -r REPO2_BARE; } < <(make_repo no ""); _TMPS+=("$REPO2" "$REPO2_BARE")
 WT2="$(add_worktree "$REPO2" "1-x" "x")"
 run "$WT2"; rc=$?
 if [[ $rc -ne 0 ]]; then
   pass "guard: repo without tracked plugins/{facto,facto-dev} is refused"
 else
-  fail "guard: non-factory repo should be refused (rc=$rc)"
+  fail "guard: non-Facto repo should be refused (rc=$rc)"
 fi
 
 # ── Tally ────────────────────────────────────────────────────────────────────

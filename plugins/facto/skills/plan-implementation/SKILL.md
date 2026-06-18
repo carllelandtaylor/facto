@@ -89,7 +89,7 @@ Before forming any opinions about how to build this, understand what already exi
    - What patterns does the codebase use (state management, API design, data access, etc.)?
    - What can be reused vs. what needs to be created?
 
-4. **Domain expertise & verification coverage.** Reflect on what the plan touches and how the factory will know it works:
+4. **Domain expertise & verification coverage.** Reflect on what the plan touches and how Facto will know it works:
 
    1. **Identify the technical domains the plan touches.** Be specific — name the actual technologies and patterns (e.g., "WebGL custom-shader programming with ping-pong framebuffers", "Google Apps Script linkPreviewTrigger behavior", "WebAudio synthesis with custom AudioWorklets"). Avoid generic categories like "frontend" or "backend".
 
@@ -98,10 +98,10 @@ Before forming any opinions about how to build this, understand what already exi
       - Does the work require deep domain expertise, or is it mostly applying well-known patterns?
       - Classify each domain as `high`, `medium`, or `low` expertise.
 
-   3. **For each PRD acceptance criterion, classify factory verification capability as one of:**
-      - `automated` — the factory can write a test/script that verifies this without human input.
-      - `manual-described` — the factory cannot verify autonomously, but a clear human-runnable check exists (and is documented in the plan's verification section).
-      - `blocked-no-tooling` — the factory cannot verify even with human help via current tooling (e.g., subjective visual quality, "looks beautiful").
+   3. **For each PRD acceptance criterion, classify Facto verification capability as one of:**
+      - `automated` — Facto can write a test/script that verifies this without human input.
+      - `manual-described` — Facto cannot verify autonomously, but a clear human-runnable check exists (and is documented in the plan's verification section).
+      - `blocked-no-tooling` — Facto cannot verify even with human help via current tooling (e.g., subjective visual quality, "looks beautiful").
 
    4. **Require E2E test steps to trace back to specific PRD acceptance criteria.** Each E2E step in the plan must reference the criterion it verifies. Criteria with no automated check get either an E2E `manual-described` step or an explicit Risk entry — they don't silently disappear.
 
