@@ -73,14 +73,14 @@ Facto is packaged as a Claude Code plugin in this repo, but isn't yet distribute
 **1. Clone the Facto repo**
 
 ```bash
-git clone https://github.com/carllelandtaylor/personal-dotfiles.git
+git clone https://github.com/carllelandtaylor/facto.git
 ```
 
 **2. Install `facto` as a local plugin via symlink**
 
 Create a symlink from your personal Claude `skills` directory to the Facto plugin in the repo you checked out. (It's weird that you put local plugins in the `skills` dir but [that's how it works](https://code.claude.com/docs/en/plugins#develop-a-plugin-in-your-skills-directory).)
 ```bash
-ln -s <Facto repo checkout path> ~/.claude/skills/facto
+ln -s <Facto repo checkout path>/plugins/facto ~/.claude/skills/facto
 ```
 Because it's a symlink, edits in the repo go live everywhere immediately. Start a new Claude Code session (or run `/reload-plugins`) to pick it up.
 
