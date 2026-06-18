@@ -1,0 +1,8 @@
+{
+  "name": "facto-dev",
+  "description": "Developer-only tools for building and improving the Facto factory itself (the fi-* factory-improvement skills). Not for general use; never published to a marketplace.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Carl Taylor"
+  }
+}

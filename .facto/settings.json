@@ -1,0 +1,26 @@
+{
+  "tasks_dir": "tasks",
+  "tracker": {
+    "type": "github-issues",
+    "repo": null,
+    "project": {
+      "owner": "carllelandtaylor",
+      "number": 1,
+      "name": "Factory Improvements"
+    },
+    "status_field": "Status",
+    "status_values": {
+      "backlog":     "Backlog",
+      "in_progress": "In progress",
+      "in_review":   "In review",
+      "in_test":     "In test",
+      "done":        "Done"
+    },
+    "branch_issue_pattern": "^[a-z]+/(?<issue>[0-9]+)-",
+    "pr_link_format": "Resolves #{issue}",
+    "skill_signature_prefix": "{skill} says:",
+    "labels": {
+      "ignore": ["test-fi"]
+    }
+  }
+}

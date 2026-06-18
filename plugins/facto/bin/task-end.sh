@@ -1,0 +1,152 @@
+#!/bin/bash
+# task-end.sh — Clean up a git worktree after a task is done
+# Must be SOURCED (not executed) so it can change the caller's CWD.
+#
+# Usage: source task-end.sh
+
+# --- Preflight checks (no side effects) ---
+
+if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+  echo "Error: not inside a git repository."
+  return 1
+fi
+
+# Must be in a worktree, not the main repo
+_te_main_repo="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+_te_git_dir="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null)"
+if [[ "$_te_git_dir" == "$_te_main_repo" ]]; then
+  echo "Error: you are in the main repo, not a worktree."
+  return 1
+fi
+
+_te_worktree_path="$(git rev-parse --show-toplevel)"
+_te_branch="$(git rev-parse --abbrev-ref HEAD)"
+
+# --- Handle uncommitted changes ---
+
+if [[ -n "$(git status --short)" ]]; then
+  echo "You have uncommitted changes:"
+  git status --short
+  echo ""
+  echo "What would you like to do?"
+  echo "  [c] Commit them now"
+  echo "  [s] Stash them"
+  echo "  [d] Discard them"
+  echo "  [a] Abort task-end"
+  read -r -p "Choice [c/s/d/a]: " _te_choice
+  case "$_te_choice" in
+    c|C)
+      read -r -p "Commit message: " _te_msg
+      git add -A && git commit -m "$_te_msg"
+      if [[ $? -ne 0 ]]; then
+        echo "Error: commit failed."
+        unset _te_main_repo _te_git_dir _te_worktree_path _te_branch _te_choice _te_msg
+        return 1
+      fi
+      ;;
+    s|S)
+      git stash push -m "task-end stash for ${_te_branch}"
+      ;;
+    d|D)
+      read -r -p "Are you sure you want to discard all changes? [y/N]: " _te_confirm
+      if [[ "$_te_confirm" != "y" && "$_te_confirm" != "Y" ]]; then
+        echo "Aborted."
+        unset _te_main_repo _te_git_dir _te_worktree_path _te_branch _te_choice _te_confirm
+        return 1
+      fi
+      git checkout -- . && git clean -fd
+      ;;
+    *)
+      echo "Aborted."
+      unset _te_main_repo _te_git_dir _te_worktree_path _te_branch _te_choice
+      return 1
+      ;;
+  esac
+fi
+
+# --- Handle unpushed commits ---
+
+_te_upstream="$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)"
+_te_has_unpushed=false
+
+if [[ -z "$_te_upstream" ]]; then
+  # No upstream set — check if there are any commits
+  if [[ -n "$(git log --oneline -1 2>/dev/null)" ]]; then
+    _te_has_unpushed=true
+  fi
+else
+  _te_unpushed_count="$(git rev-list "${_te_upstream}..HEAD" --count 2>/dev/null)"
+  if [[ "$_te_unpushed_count" -gt 0 ]]; then
+    _te_has_unpushed=true
+  fi
+fi
+
+if [[ "$_te_has_unpushed" == true ]]; then
+  echo ""
+  echo "You have unpushed commits on ${_te_branch}."
+  read -r -p "Push before cleaning up? [Y/n]: " _te_push_choice
+  if [[ "$_te_push_choice" != "n" && "$_te_push_choice" != "N" ]]; then
+    if [[ -z "$_te_upstream" ]]; then
+      git push -u origin "$_te_branch"
+    else
+      git push
+    fi
+    if [[ $? -ne 0 ]]; then
+      echo "Error: push failed. Aborting cleanup."
+      unset _te_main_repo _te_git_dir _te_worktree_path _te_branch _te_upstream
+      unset _te_has_unpushed _te_unpushed_count _te_push_choice
+      return 1
+    fi
+  fi
+fi
+
+# --- All checks passed — begin teardown ---
+
+# Find the main repo path from worktree list
+_te_main_path="$(git worktree list --porcelain | head -1 | sed 's/^worktree //')"
+
+# Check if branch is merged or has a merged PR
+_te_delete_branch=false
+_te_main_branch="$(git -C "$_te_main_path" remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}')"
+
+if git -C "$_te_main_path" merge-base --is-ancestor "$_te_branch" "origin/${_te_main_branch}" 2>/dev/null; then
+  _te_delete_branch=true
+elif command -v gh &>/dev/null; then
+  _te_merged_count="$(gh pr list --head "$_te_branch" --state merged --json number --jq 'length' 2>/dev/null)"
+  if [[ "$_te_merged_count" -gt 0 ]]; then
+    _te_delete_branch=true
+  fi
+fi
+
+# Run project-specific teardown hook if it exists
+if [[ -f "${_te_main_path}/.facto/worktree-teardown.sh" ]]; then
+  echo "Running project worktree-teardown hook..."
+  bash "${_te_main_path}/.facto/worktree-teardown.sh" "$_te_worktree_path"
+fi
+
+# Remove the worktree
+cd "$_te_main_path"
+git worktree remove "$_te_worktree_path" --force
+if [[ $? -ne 0 ]]; then
+  echo "Error: failed to remove worktree."
+  unset _te_main_repo _te_git_dir _te_worktree_path _te_branch _te_main_path
+  unset _te_delete_branch _te_main_branch _te_merged_count
+  return 1
+fi
+
+# Delete branch if it was merged
+if [[ "$_te_delete_branch" == true ]]; then
+  git branch -d "$_te_branch" 2>/dev/null
+  echo "Deleted merged branch: ${_te_branch}"
+else
+  echo "Branch ${_te_branch} kept (not yet merged)."
+fi
+
+echo ""
+echo "Worktree removed. You are now in: $(pwd)"
+echo ""
+
+# Clean up temporary variables
+unset _te_main_repo _te_git_dir _te_worktree_path _te_branch _te_upstream
+unset _te_has_unpushed _te_unpushed_count _te_push_choice _te_choice _te_msg _te_confirm
+unset _te_main_path _te_delete_branch _te_main_branch _te_merged_count

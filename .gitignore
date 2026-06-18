@@ -1,0 +1,4 @@
+.claude/settings.local.json
+.facto/worktrees/
+# Legacy location for worktrees created before the move to .facto/worktrees/.
+.claude/worktrees/

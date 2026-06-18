@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title><surface> · <view> — view spec</title>
+<!--
+  EVERGREEN VIEW SPEC TEMPLATE — facto:ref-design-system.
+
+  This is the SHELL for one evergreen view spec: a pan/zoom canvas holding a
+  meta-card and a States band of device frames, each embedding a per-state render
+  harness `_<state>.html`. The harnesses hold the actual device-accurate design
+  (real tokens, bundled fonts, measured geometry); this file only frames them.
+  See /facto:ref-design-system "How to Write a View Spec" and /facto:ref-design-mock for the
+  harness + render/diff mechanics.
+
+  HOW TO FILL:
+    1. Copy this file to docs/design/<surface>/views/<view>/<view>.html and edit the copy.
+    2. Fill the header block below (type/route/source/device profile/fonts/states/diff notes).
+    3. Set the DEVICE PROFILE vars in :root to this surface's measured logical viewport.
+    4. Keep the frame kind that matches the surface — .phone for mobile, .browser for web —
+       and delete the CSS + markup for the other.
+    5. Add one .frame per state in the States band, each embedding its `_<state>.html`.
+
+  PROJECT-AGNOSTIC: never hard-code product brand colors, fonts, or copy in THIS template.
+  Those live in the per-state harnesses, generated from the product's design system.
+
+  ─── FILL THIS HEADER ───────────────────────────────────────────────────────
+  EVERGREEN VIEW SPEC — <surface> / <view>
+  type:           <screen | region | overlay (+ host widget, e.g. ModalBottomSheet)>
+  route/invoked:  <screen: route/destination · overlay: what opens it · region: screens it appears in>
+  source:         <relative path to the implementing source file>
+  device profile: <e.g. android · 1080x2400 px @420dpi · dsf 2.625 · logical 411x914 dp · OR web · 1280x800 · dsf 1>
+  fonts:          <bundled font families the harnesses @font-face, or the system stack>
+  states:         <state — verified live | from source, unverified — for each>
+  diff:           <which state(s) diffed against which live capture, at what delta; accepted divergences>
+  ────────────────────────────────────────────────────────────────────────────
+-->
+<style>
+  :root{
+    /* DEVICE PROFILE — set to this surface's measured logical viewport (1 CSS px == 1 dp/pt).
+       The iframe and frame both read these, so set them once here. */
+    --screen-w: 393px;   /* phone logical width  */
+    --screen-h: 760px;   /* phone logical height */
+    --frame-w: 1280px;   /* browser viewport width  */
+    --frame-h: 800px;    /* browser viewport height */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a;padding:1rem;display:flex;flex-direction:column}
+  /* ── canvas shell (load-bearing — do not restyle) ── */
+  .canvas-wrap{flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;background:#fff}
+  .canvas-toolbar{flex-shrink:0;display:flex;gap:.4rem;align-items:center;padding:.4rem .6rem;background:#f0f0f0;border-bottom:1px solid #d0d0d0}
+  .canvas-toolbar button{padding:.2rem .55rem;font-size:.9rem;border:1px solid #bbb;border-radius:4px;background:#fff;cursor:pointer}
+  #zoom-label{min-width:3.5rem;text-align:center;font-size:.85rem;color:#555}
+  .canvas-viewport{flex:1;min-height:0;position:relative;overflow:hidden;cursor:grab;background:#fafafa}
+  .canvas-viewport.grabbing{cursor:grabbing}
+  .canvas-board{position:absolute;top:0;left:0;transform-origin:0 0;width:max-content;padding:2rem;display:flex;flex-direction:column;gap:3rem;align-items:flex-start;background-image:radial-gradient(circle,#ccc 1px,transparent 1px);background-size:24px 24px}
+  .band{display:flex;flex-direction:column;gap:1.25rem}
+  .band-header{display:flex;flex-direction:column;gap:.2rem;padding-bottom:.5rem;border-bottom:2px solid #d0d0d0}
+  .band-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#555}
+  .band-sublabel{font-size:.78rem;color:#888}
+  .band-frames{display:flex;flex-wrap:nowrap;gap:2.5rem;align-items:flex-start}
+  .frame{display:flex;flex-direction:column;align-items:center;gap:.6rem}
+  .frame-title{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#888;white-space:nowrap}
+  /* ── PHONE frame (mobile surfaces) — screen is the harness iframe at 1 css px = 1 dp ── */
+  .phone{border:10px solid #111;border-radius:44px;background:#111;box-shadow:0 6px 32px rgba(0,0,0,.35)}
+  .phone-screen{width:var(--screen-w);height:var(--screen-h);border-radius:34px;overflow:hidden;background:#fff;position:relative}
+  .phone-screen iframe{display:block;width:var(--screen-w);height:var(--screen-h);border:0}
+  /* cosmetic OS chrome — drawn over the screen, excluded from the diff */
+  .os-statusbar{position:absolute;top:0;left:0;width:var(--screen-w);height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:12px;font-weight:600;color:#111;pointer-events:none}
+  .os-gesture{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:128px;height:5px;border-radius:3px;background:#111;opacity:.25;pointer-events:none}
+  /* ── BROWSER frame (web surfaces) — bare viewport, no window chrome ── */
+  .browser{border:2px solid #d0d0d0;border-radius:10px;overflow:hidden;box-shadow:0 3px 16px rgba(0,0,0,.12);background:#fff;width:var(--frame-w)}
+  .browser iframe{display:block;width:var(--frame-w);height:var(--frame-h);border:0}
+  /* ── metadata card ── */
+  .meta-card{background:#fff;border:1px solid #d0d0d0;border-radius:10px;padding:1.25rem 1.75rem;max-width:900px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  .meta-card h1{font-size:1.3rem;letter-spacing:-.01em;margin-bottom:.5rem}
+  .meta-card .tag{display:inline-block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#0f172a;background:#e2e8f0;border-radius:4px;padding:2px 8px;margin-left:.5rem;vertical-align:middle}
+  .meta-card dl{display:grid;grid-template-columns:max-content 1fr;gap:.3rem 1rem;font-size:.82rem;margin-top:.75rem}
+  .meta-card dt{color:#888;font-weight:600}.meta-card dd{color:#333}
+  .meta-card code{font-family:ui-monospace,monospace;font-size:.78rem;background:#f4f4f5;padding:1px 5px;border-radius:4px}
+  .note{font-size:.78rem;color:#a15c00;background:#fef4e4;border-radius:6px;padding:.5rem .75rem;margin-top:.6rem}
+</style>
+</head>
+<body>
+<div class="canvas-wrap">
+  <div class="canvas-toolbar">
+    <button id="btn-zoom-out">-</button><span id="zoom-label">100%</span>
+    <button id="btn-zoom-in">+</button><button id="btn-reset">100%</button><button id="btn-fit">Fit</button>
+  </div>
+  <div class="canvas-viewport" id="viewport">
+    <div class="canvas-board" id="board">
+
+      <!-- META: h1 = "<Surface>: <View name>" + a .tag for the type. Fill the <dl>:
+           screen → "Route"; overlay → "Invoked from"; region → "Appears in"; always a "Source" link
+           (relative, 5×../ from views/<view>/ to repo root). Add a .note for any divergence
+           from the design system or out-of-scope item. -->
+      <div class="band">
+        <div class="band-frames">
+          <div class="meta-card">
+            <h1>[Surface]: [View name] <span class="tag">[type]</span></h1>
+            <dl>
+              <dt>Route</dt><dd><code>&lt;route&gt;</code> — [when/where it is shown]</dd>
+              <dt>Source</dt><dd><a href="../../../../../[repo-path-to-source]"><code>[repo-path-to-source]</code></a></dd>
+            </dl>
+            <!-- <div class="note"><strong>Divergence:</strong> <how this view departs from design-system.md, if it does></div> -->
+          </div>
+        </div>
+      </div>
+
+      <!-- STATES: one .frame per state. Each embeds its harness _<state>.html (built
+           device-accurate per /facto:ref-design-mock). Keep the frame kind matching this surface —
+           .phone for mobile, .browser for web — and delete the other. -->
+      <div class="band">
+        <div class="band-header">
+          <span class="band-label">States</span>
+        </div>
+        <div class="band-frames">
+
+          <!-- PHONE example (delete if web) -->
+          <div class="frame">
+            <span class="frame-title">[State — short description]</span>
+            <div class="phone"><div class="phone-screen">
+              <iframe src="_<state>.html" title="<view> <state>"></iframe>
+              <div class="os-statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div><div class="os-gesture"></div>
+            </div></div>
+          </div>
+
+          <!-- BROWSER example (delete if mobile)
+          <div class="frame">
+            <span class="frame-title">[State — short description]</span>
+            <div class="browser"><iframe src="_<state>.html" title="<view> <state>"></iframe></div>
+          </div>
+          -->
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const vp=document.getElementById('viewport'),board=document.getElementById('board'),zl=document.getElementById('zoom-label');
+  let tx=0,ty=0,scale=1;const MIN=.1,MAX=4;
+  function apply(){board.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;zl.textContent=Math.round(scale*100)+'%';}
+  function fit(){const vw=vp.clientWidth,vh=vp.clientHeight,bw=board.scrollWidth,bh=board.scrollHeight;if(!vw||!bw)return;const s=Math.min((vw-32)/bw,(vh-32)/bh,MAX);scale=Math.max(MIN,s);tx=(vw-bw*scale)/2;ty=16;apply();}
+  window.addEventListener('load',fit);setTimeout(fit,250);
+  let drag=false,sx=0,sy=0,ox=0,oy=0;
+  vp.addEventListener('mousedown',e=>{if(e.button||e.target.closest('button'))return;drag=true;sx=e.clientX;sy=e.clientY;ox=tx;oy=ty;vp.classList.add('grabbing');e.preventDefault();});
+  window.addEventListener('mousemove',e=>{if(!drag)return;tx=ox+e.clientX-sx;ty=oy+e.clientY-sy;apply();});
+  window.addEventListener('mouseup',()=>{drag=false;vp.classList.remove('grabbing');});
+  vp.addEventListener('wheel',e=>{e.preventDefault();if(e.ctrlKey||e.metaKey){const r=vp.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,bx=(mx-tx)/scale,by=(my-ty)/scale;scale=Math.min(MAX,Math.max(MIN,scale*(1+(e.deltaY>0?-.1:.1))));tx=mx-bx*scale;ty=my-by*scale;}else{tx-=e.deltaX;ty-=e.deltaY;}apply();},{passive:false});
+  function zc(f){const cx=vp.clientWidth/2,cy=vp.clientHeight/2,bx=(cx-tx)/scale,by=(cy-ty)/scale;scale=Math.min(MAX,Math.max(MIN,scale*f));tx=cx-bx*scale;ty=cy-by*scale;apply();}
+  document.getElementById('btn-zoom-in').onclick=()=>zc(1.15);
+  document.getElementById('btn-zoom-out').onclick=()=>zc(.85);
+  document.getElementById('btn-reset').onclick=()=>{scale=1;tx=0;ty=0;apply();};
+  document.getElementById('btn-fit').onclick=fit;
+})();
+</script>
+</body>
+</html>

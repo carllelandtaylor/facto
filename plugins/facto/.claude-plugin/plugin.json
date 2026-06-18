@@ -1,0 +1,8 @@
+{
+  "name": "facto",
+  "description": "A Claude Code software factory: a pipeline of skills for spec-driven development — product requirements, design, planning, implementation, review, and PRs.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Carl Taylor"
+  }
+}

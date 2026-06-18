@@ -1,0 +1,314 @@
+<!--
+  facto:research baseline template.
+
+  Use this when no style reference was supplied in Phase 1. If a style
+  reference was supplied, lift its <style> and <script> blocks verbatim
+  instead of these — the goal is for the new report to feel like a
+  sibling of the existing ones in the same directory.
+
+  Components:
+    - Always-included infrastructure: page chrome, sources table CSS+JS,
+      sortable column headers, flash-on-target, callouts (.takeaway,
+      .not-found, .row-unsure).
+    - Mix-and-match content components (see SKILL.md §"Picking content
+      components") go between the intro and the <h2 id="sources"> section.
+
+  Replace every <!-- TODO --> marker with real content. Delete any
+  components you don't use.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title><!-- TODO: Topic --> — <!-- TODO: YYYY-MM-DD --></title>
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --muted: #555;
+    --accent: #1d4ed8;
+    --rule: #e2e2e2;
+    --card-bg: #fff;
+    --tldr-bg: #fffbeb;
+    --tldr-border: #f59e0b;
+    --notfound-bg: #f3f4f6;
+    --notfound-border: #9ca3af;
+    --unsure-fg: #5b1d1d;
+  }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--fg);
+    line-height: 1.55;
+    max-width: 980px;
+    margin: 2.5rem auto;
+    padding: 0 1.25rem 4rem;
+    background: #fafafa;
+  }
+  h1 { font-size: 2rem; line-height: 1.2; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-top: 0; margin-bottom: 1.5rem; }
+  h2 {
+    font-size: 1.4rem;
+    margin-top: 2.75rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.35rem;
+  }
+  h3 { font-size: 1.15rem; margin-top: 1.75rem; }
+
+  a { color: var(--accent); }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    background: #f1f1f1;
+    padding: 0.05em 0.3em;
+    border-radius: 3px;
+  }
+
+  .intro {
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 0.9rem 1.1rem;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  /* Amber takeaway / aside */
+  .takeaway {
+    background: var(--tldr-bg);
+    border-left: 4px solid var(--tldr-border);
+    padding: 0.85rem 1.1rem;
+    margin: 1.25rem 0;
+    border-radius: 3px;
+  }
+
+  /* Grey "no data found" block */
+  .not-found {
+    background: var(--notfound-bg);
+    border-left: 4px solid var(--notfound-border);
+    padding: 0.85rem 1.1rem;
+    margin: 1.25rem 0;
+    border-radius: 3px;
+    font-size: 0.95rem;
+  }
+  .not-found h3 { margin-top: 0; }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.45rem 0.55rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th { background: #f3f4f6; font-weight: 600; }
+
+  /* Sortable column headers */
+  table.sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
+  table.sortable th::after { content: " ⇅"; opacity: 0.3; font-size: 0.85em; }
+  table.sortable th[data-sort="asc"]::after { content: " ▲"; opacity: 0.85; }
+  table.sortable th[data-sort="desc"]::after { content: " ▼"; opacity: 0.85; }
+
+  /* Flash a row when its anchor becomes the URL target, then fade */
+  @keyframes row-flash-fade { from { background: #fef9c3; } to { background: transparent; } }
+  tr.row-flash td { animation: row-flash-fade 3s ease-out forwards; }
+  tr.row-flash td:first-child { font-weight: 700; }
+
+  /* Tint rows with unsure / ❓ claims when they appear in tables */
+  tr.row-unsure td { color: var(--unsure-fg); }
+
+  /* Inline overdue date marker */
+  .date.overdue { color: #b91c1c; font-weight: 600; }
+
+  footer {
+    margin-top: 3rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 1rem;
+  }
+</style>
+<script>
+  // Flash the targeted row when arriving via #anchor.
+  function flashTargetRow() {
+    const id = location.hash.slice(1);
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (!el || el.tagName !== 'TR') return;
+    el.classList.remove('row-flash');
+    void el.offsetWidth;
+    el.classList.add('row-flash');
+    setTimeout(() => el.classList.remove('row-flash'), 3000);
+  }
+  window.addEventListener('hashchange', flashTargetRow);
+  window.addEventListener('DOMContentLoaded', flashTargetRow);
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (a && a.getAttribute('href') === location.hash) {
+      requestAnimationFrame(flashTargetRow);
+    }
+  });
+
+  // Sortable tables: click a header to cycle asc → desc → original.
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('table.sortable').forEach(table => {
+      const tbody = table.tBodies[0];
+      if (!tbody) return;
+      const originalOrder = Array.from(tbody.rows);
+      const headers = table.querySelectorAll('thead th');
+      headers.forEach((th, colIdx) => {
+        th.addEventListener('click', () => {
+          const prev = th.getAttribute('data-sort');
+          const next = prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc';
+          headers.forEach(h => h.removeAttribute('data-sort'));
+          if (next === null) {
+            originalOrder.forEach(r => tbody.appendChild(r));
+            return;
+          }
+          th.setAttribute('data-sort', next);
+          const rows = Array.from(tbody.rows);
+          const cellText = row => (row.cells[colIdx] ? row.cells[colIdx].textContent : '').trim();
+          rows.sort((a, b) => cellText(a).localeCompare(cellText(b), undefined, { numeric: true, sensitivity: 'base' }));
+          if (next === 'desc') rows.reverse();
+          rows.forEach(r => tbody.appendChild(r));
+        });
+      });
+    });
+  });
+</script>
+</head>
+<body>
+
+<h1><!-- TODO: Title --> — <!-- TODO: YYYY-MM-DD --></h1>
+<p class="subtitle"><!-- TODO: One-line subtitle stating the question this report answers --></p>
+
+<div class="intro">
+  <strong>How to read this report.</strong>
+  <!-- TODO: Briefly explain whichever of these apply to this report:
+       - column meanings (if any tables)
+       - confidence symbols: ✅ confirmed (primary source) / ❓ unsure (paraphrase, rumor, undated)
+       - date conventions: real date when published; "date unknown" otherwise; never guessed
+       - no-data convention: explicit .not-found block lists where we searched
+       - unverified-marker convention: ❓ inline + .row-unsure tint in tables, with a description of why uncertain
+  -->
+</div>
+
+<!--
+  ============================================================
+  CONTENT COMPONENTS — keep what fits the report shape, delete the rest.
+  See SKILL.md §"Picking content components".
+  ============================================================
+-->
+
+<!-- Prose section (deep-dive, narrative, single-topic explainer) -->
+<h2 id="section-1"><!-- TODO: Section title --></h2>
+<p><!-- TODO: prose with inline citations like <a href="#S1">S1</a> --></p>
+
+<!-- Comparison / faceted table (rows = subjects, columns = facets) -->
+<!--
+<h2 id="comparison">Comparison</h2>
+<table class="sortable">
+  <thead>
+    <tr>
+      <th>Subject</th>
+      <th>Facet A</th>
+      <th>Facet B</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Subject 1</td><td>… <a href="#S2">S2</a></td><td>…</td><td>…</td></tr>
+    <tr class="row-unsure"><td>Subject 2</td><td>❓ … <a href="#S3">S3</a></td><td>…</td><td>Why unsure: …</td></tr>
+  </tbody>
+</table>
+-->
+
+<!-- Per-subject facts table (one per <h2>) -->
+<!--
+<h2 id="subject-x">Subject X</h2>
+<table class="sortable">
+  <thead>
+    <tr>
+      <th style="width:8rem">Date</th>
+      <th style="width:5rem">Confidence</th>
+      <th>Fact</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>2026-04-15</td><td>✅</td><td>… <a href="#S4">S4</a></td><td>…</td></tr>
+    <tr class="row-unsure"><td>date unknown</td><td>❓</td><td>… <a href="#S5">S5</a></td><td>Why unsure: …</td></tr>
+  </tbody>
+</table>
+-->
+
+<!-- Timeline -->
+<!--
+<h2 id="timeline">Timeline</h2>
+<table>
+  <thead><tr><th style="width:9rem">When</th><th>What</th></tr></thead>
+  <tbody>
+    <tr><td>2025-Q3</td><td>… <a href="#S6">S6</a></td></tr>
+    <tr><td><span class="date overdue">promised 2025-12-31</span></td><td>… still not shipped as of report date <a href="#S7">S7</a></td></tr>
+  </tbody>
+</table>
+-->
+
+<!-- Q&A block -->
+<!--
+<h2 id="q-1">Question: …</h2>
+<p>Answer: … <a href="#S8">S8</a></p>
+-->
+
+<!-- "No data found" block -->
+<!--
+<div class="not-found">
+  <h3>No data located: <em>… the sub-question …</em></h3>
+  <p>Where we searched:</p>
+  <ul>
+    <li>URL or query 1</li>
+    <li>URL or query 2</li>
+  </ul>
+</div>
+-->
+
+<!-- Takeaway / aside -->
+<!--
+<div class="takeaway">
+  <strong>Note:</strong> … contextual aside the reader should not miss.
+</div>
+-->
+
+<!--
+  ============================================================
+  SOURCES — always included.
+  Anchor IDs are stable; new sources go at the end (do not renumber).
+  ============================================================
+-->
+<h2 id="sources">Sources</h2>
+<table class="sortable">
+<thead><tr><th style="width:3rem">#</th><th>URL</th><th>Name</th><th style="width:8rem">Date Published</th><th>Description</th></tr></thead>
+<tbody>
+  <tr id="S1">
+    <td>S1</td>
+    <td><a href="https://example.com/path">example.com/path</a></td>
+    <td><!-- TODO: our name for the page, not the literal <title> --></td>
+    <td><!-- YYYY-MM-DD or — --></td>
+    <td><!-- one phrase describing what the source is --></td>
+  </tr>
+  <!-- INSTRUCTIONS FOR AGENTS APPENDING NEW SOURCES:
+       Append the new <tr> immediately above this comment.
+       Use the next sequential number (currently 2) for the id (id="S2") and the visible # (S2).
+       Do NOT renumber existing entries — inline citations like [S1] reference these IDs and must stay stable. -->
+</tbody>
+</table>
+
+<footer>Report generated <!-- TODO: YYYY-MM-DD -->. Re-check links periodically.</footer>
+
+</body>
+</html>
