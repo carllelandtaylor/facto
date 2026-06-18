@@ -151,7 +151,7 @@ The coding factory is a closed-loop system. This factory improvement system is a
 
 The improvement memory is where the system stores information related to its improvement attempts across sessions. It is split into two surfaces:
 
-1. **GitHub Issues** on `carllelandtaylor/personal-dotfiles` — every factory improvement (a bug to fix or an enhancement to ship) is one Issue. Supporting observations are comments on the relevant Issue. A new observation either lands as a comment on a matching open or recently-closed Issue, or opens a new Issue if no Issue matches. For the full tracker setup (Project, Status field, PR-linking convention, labels), see the `## Issue tracking` section in the repo-root `CLAUDE.md`.
+1. **GitHub Issues** on `carllelandtaylor/facto` — every factory improvement (a bug to fix or an enhancement to ship) is one Issue. Supporting observations are comments on the relevant Issue. A new observation either lands as a comment on a matching open or recently-closed Issue, or opens a new Issue if no Issue matches. For the full tracker setup (Project, Status field, PR-linking convention, labels), see the `## Issue tracking` section in the repo-root `CLAUDE.md`.
 2. **OKRs** in `OKRS.md` — the factory's current Objectives and Key Results, used as the shared definition of success that improvements are evaluated against.
 
 #### GitHub Issues

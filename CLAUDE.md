@@ -9,8 +9,6 @@ This repo is the Facto software factory — two Claude Code skills-directory plu
 - **`plugins/facto/`** — public plugin. Pipeline skills (`/facto:<name>`) in `skills/`; user-facing worktree scripts (`facto-helper.sh`, `task-start.sh`, …) in `bin/`.
 - **`plugins/facto-dev/`** — developer-only plugin. The factory-improvement skills (`/facto-dev:<name>`) in `skills/`; developer scripts in `bin/`.
 
-Also `claude/settings.json` — the maintainer's personal Claude Code permissions and hooks, not part of the factory.
-
 For factory **usage** (setup, workflows, the full skill catalog) see [README.md](README.md). For the factory's **design and improvement system** see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Per-task planning docs
@@ -21,7 +19,7 @@ All planning docs for one task (product requirements, design, architecture, impl
 
 ## Issue tracking
 
-Work in this repo is tracked as **GitHub Issues** on `carllelandtaylor/personal-dotfiles`, with lifecycle state held on the **[Factory Improvements GitHub Project](https://github.com/users/carllelandtaylor/projects/1)** (project #1). Every improvement Issue is also a project item; supporting observations are comments on the relevant Issue. Tracker config — repo, project owner/number/name, and the Status field/value names — lives in `.facto/settings.json`, the single source of truth read by `facto-helper.sh` and the skills. The hardcoded values named here just reflect that file.
+Work in this repo is tracked as **GitHub Issues** on `carllelandtaylor/facto`, with lifecycle state held on the **[Facto GitHub Project](https://github.com/users/carllelandtaylor/projects/1)** (project #1). Every improvement Issue is also a project item; supporting observations are comments on the relevant Issue. Tracker config — repo, project owner/number/name, and the Status field/value names — lives in `.facto/settings.json`, the single source of truth read by `facto-helper.sh` and the skills. The hardcoded values named here just reflect that file.
 
 Name feature branches `<type>/<issue#>-<slug>` so the Issue auto-links (`feat/42-csv-export`, `fix/57-login-redirect`, `chore/63-bump-deps`).
 
