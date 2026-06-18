@@ -71,7 +71,7 @@ Ask the user whether the **current repo** should use GitHub Issues + a GitHub Pr
 1. **GitHub repo slug** — default: `gh repo view --json nameWithOwner -q .nameWithOwner` from the current repo. Ask if the remote isn't set yet (e.g. `owner/repo`).
 2. **GitHub Project** — ask:
    - Owner (default: the same GitHub user/org as the repo)
-   - Display name (the project's title, e.g. `Factory Improvements`)
+   - Display name (the project's title, e.g. `Notepad Pro Roadmap`)
    - Whether the project already exists. If it does, ask for its number. If it doesn't, offer to create it now — `gh project create --title "<name>" --owner "<owner>" --format json` — and read the `number` from the output.
 3. **Status field name** — default: `Status`. Ask if they want a different name.
 4. **Status option names** — default the five used in this factory (`Backlog`, `In progress`, `In review`, `In test`, `Done`). Ask whether to rename any.
