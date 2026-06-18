@@ -18,7 +18,8 @@ fi
 
 # --- Set up a throwaway repo with two fake worktrees ---
 _TMP="$(mktemp -d)"
-trap 'rm -rf "$_TMP"' EXIT
+_DIFF="$(mktemp)"
+trap 'rm -rf "$_TMP" "$_DIFF"' EXIT
 
 cd "$_TMP"
 git init --quiet --initial-branch=main
@@ -49,10 +50,10 @@ Name: zebra-task
 "
 
 # --- Diff and report ---
-if ! diff -u <(printf '%s' "$EXPECTED") <(printf '%s\n' "$ACTUAL") > /tmp/task-list-test.diff 2>&1; then
+if ! diff -u <(printf '%s' "$EXPECTED") <(printf '%s\n' "$ACTUAL") > "$_DIFF" 2>&1; then
   echo "FAIL: task-list output did not match expected snapshot" >&2
   echo "--- diff (expected vs actual) ---" >&2
-  cat /tmp/task-list-test.diff >&2
+  cat "$_DIFF" >&2
   exit 1
 fi
 

@@ -1,6 +1,6 @@
 ---
 name: setup-facto-dev
-description: "One-time developer setup for running Facto from any repo. Detects the Facto checkout and writes FACTO_REPO to your shell profile so the facto-dev skills (observe, think, status, mine-logs, mine-web) can locate Facto's tracker config, OKRs, and Issue templates regardless of which repo you invoke them from. Invoke with /facto-dev:setup-facto-dev. Procedure skill (follow the phases in order)."
+description: "One-time developer setup for running Facto from any repo. Detects the Facto checkout and writes FACTO_REPO to your shell profile so the facto-dev skills (observe, think, status, mine-logs) can locate Facto's tracker config, OKRs, and Issue templates regardless of which repo you invoke them from. Invoke with /facto-dev:setup-facto-dev. Procedure skill (follow the phases in order)."
 disable-model-invocation: true
 color: yellow
 ---

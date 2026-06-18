@@ -20,7 +20,7 @@ set -euo pipefail
 #   --root <path>              — use <path> as the repo root instead of git rev-parse --show-toplevel
 #
 # Subcommands:
-#   tracker.exists             — exit 0 if config.json exists and has .tracker; exit 1 otherwise (silent)
+#   tracker.exists             — exit 0 if .facto/settings.json exists and has .tracker; exit 1 otherwise (silent)
 #   tracker.field <jq-path>    — print .tracker.<jq-path> to stdout
 #   current-issue              — print the active issue number to stdout
 #   task-slug                  — print the canonical task slug for the current worktree/branch
@@ -141,7 +141,7 @@ fi
 
 # All remaining subcommands need the config to exist
 if [[ ! -f "$CONFIG" ]]; then
-  echo "ERROR: config.json not found at $CONFIG" >&2
+  echo "ERROR: .facto/settings.json not found at $CONFIG" >&2
   exit 1
 fi
 

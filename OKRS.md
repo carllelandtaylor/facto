@@ -28,9 +28,9 @@ _The software produced by Facto_
 
 | Target (KR) | Current status |
 |---|---|
-| Facto is able to generate product research, including user personas and competitive context. 📋 (satisfaction survey) | 🟡 `c-research` covers competitive context via web research. Formal persona output not supported. |
-| Facto is able to generate a product spec for a new feature in an existing project. 📋 (satisfaction survey) | 🟡 `c-product-req` handles this. Not yet survey-validated. |
-| Facto is able to generate a product spec for a wholly new product. 📋 (satisfaction survey) | 🟡 `c-new-project-setup-plan` handles this. Not yet survey-validated. |
+| Facto is able to generate product research, including user personas and competitive context. 📋 (satisfaction survey) | 🟡 `facto:research` covers competitive context via web research. Formal persona output not supported. |
+| Facto is able to generate a product spec for a new feature in an existing project. 📋 (satisfaction survey) | 🟡 `facto:plan-product` handles this. Not yet survey-validated. |
+| Facto is able to generate a product spec for a wholly new product. 📋 (satisfaction survey) | 🟡 `facto:setup-new-project` handles this. Not yet survey-validated. |
 | Facto is able to store and retrieve product ideas / future projects. | 🔴 No capability today. |
 | Facto is able to choose a next feature to work on from the stored set. 📋 (satisfaction survey) | 🔴 No capability today. |
 
@@ -42,10 +42,10 @@ _The software produced by Facto_
 
 | Target (KR) | Current status |
 |---|---|
-| Facto is able to produce a reviewable visual design artifact (multi-screen mockup, all screens + states viewable side-by-side, navigable) from a product spec, before any application code is written. | 🟢 `c-design` + `c-design-mock` produce a Figma-like pan/zoom mock from the product spec, positioned between `/c-product-req` and `/c-impl-plan`. |
-| Facto is able to iterate collaboratively with the developer on the design artifact — applying feedback, revising specific screens or states, comparing variants — before any application code is written. | 🟡 `c-design` runs an adversarial-review loop and summarizes decisions for the developer; an explicit developer-feedback / variant-comparison loop on the artifact is not yet specified. |
-| Facto's design artifact includes empty / loading / error states alongside the happy-path screens by default, not only on explicit request. | 🟡 `c-design` covers screen "states" generally but does not mandate empty / loading / error states by default. |
-| Facto's design artifact meets accessibility basics by default (semantic HTML, ARIA labels, keyboard navigation, color contrast); the artifact is gated on passing these checks before it's considered done. | 🔴 No accessibility checks or gate in `c-design` today. |
+| Facto is able to produce a reviewable visual design artifact (multi-screen mockup, all screens + states viewable side-by-side, navigable) from a product spec, before any application code is written. | 🟢 `facto:plan-design` + `facto:ref-design-mock` produce a Figma-like pan/zoom mock from the product spec, positioned between `/facto:plan-product` and `/facto:plan-implementation`. |
+| Facto is able to iterate collaboratively with the developer on the design artifact — applying feedback, revising specific screens or states, comparing variants — before any application code is written. | 🟡 `facto:plan-design` runs an adversarial-review loop and summarizes decisions for the developer; an explicit developer-feedback / variant-comparison loop on the artifact is not yet specified. |
+| Facto's design artifact includes empty / loading / error states alongside the happy-path screens by default, not only on explicit request. | 🟡 `facto:plan-design` covers screen "states" generally but does not mandate empty / loading / error states by default. |
+| Facto's design artifact meets accessibility basics by default (semantic HTML, ARIA labels, keyboard navigation, color contrast); the artifact is gated on passing these checks before it's considered done. | 🔴 No accessibility checks or gate in `facto:plan-design` today. |
 
 ## code-correctness 🔴
 
@@ -55,10 +55,10 @@ _The software produced by Facto_
 
 | Target (KR) | Current status |
 |---|---|
-| Facto always creates tests for its changes, and the tests are appropriate to the change. 📋 (measured via per-PR developer yes/no survey) | 🟡 `c-implement` can generate tests but doesn't always. Not yet survey-validated. |
-| Facto runs tests, lints, type checks, and other validation checks automatically and independently, iterating on failures until they all pass. | 🟢 `c-review-loop` and `c-ci-make-green` handle this. |
+| Facto always creates tests for its changes, and the tests are appropriate to the change. 📋 (measured via per-PR developer yes/no survey) | 🟡 `facto:implement` can generate tests but doesn't always. Not yet survey-validated. |
+| Facto runs tests, lints, type checks, and other validation checks automatically and independently, iterating on failures until they all pass. | 🟢 `facto:review-loop-code` and `facto:watch-and-fix-ci` handle this. |
 | Facto runs static security checks (dependency audit, SAST, secret scanning) on every change. | 🔴 No capability today. |
-| Facto self-reviews its own diff for correctness issues before opening a PR for human review or merging. | 🟢 `c-review-loop` handles this. |
+| Facto self-reviews its own diff for correctness issues before opening a PR for human review or merging. | 🟢 `facto:review-loop-code` handles this. |
 | Facto verifies that the project's CI is configured to run tests and block merge on failure; sets up the CI gate (via a skill or hook) if it isn't already in place. | 🔴 No capability today. |
 | Across the most recent 10 Facto-built PRs, ≥8 had no bugs found by the developer that Facto missed — 📋 surveyed both during pre-merge developer review and any post-merge use. (Developer-found bugs are the signal that this objective is not being met.) | 🔴 No survey in place; developer-found bugs not tracked. |
 
@@ -72,7 +72,7 @@ _The software produced by Facto_
 |---|---|
 | Across the 10 most recent Facto-built PRs, ≥8 had developer survey responses of "yes" to: the code is easy enough to read and understand. 📋 (per-PR developer survey) | 🔴 No survey in place; not tracked. |
 | Facto consistently follows the project's existing coding style, naming conventions, and formatting in new code. 📋 (satisfaction survey) | 🟡 Not enforced or tracked. Not yet survey-validated. |
-| Facto matches the project's documented architecture for new features; matches the existing/observed architecture when no documented architecture exists. 📋 (satisfaction survey) | 🟡 `c-arch-decision` can document architectural decisions; matching not enforced or tracked. Not yet survey-validated. |
+| Facto matches the project's documented architecture for new features; matches the existing/observed architecture when no documented architecture exists. 📋 (satisfaction survey) | 🟡 `facto:plan-architecture` can document architectural decisions; matching not enforced or tracked. Not yet survey-validated. |
 
 ## reviewability 🔴
 
@@ -82,9 +82,9 @@ _The software produced by Facto_
 
 | Target (KR) | Current status |
 |---|---|
-| Facto produces well-structured PRs: each PR is small enough to review easily; has a clear description covering what changed, why, and how to verify; has descriptive commit messages with logical commit splits; and includes explicit test plan / verification steps. 📋 (satisfaction survey) | 🟡 `c-commit-or-amend` and `c-pr` handle this; PR description quality is variable and PR size is not enforced. Not yet survey-validated. |
-| Facto references the relevant issue, ticket, or design doc in every PR. | 🟡 `c-pr` does this when context is provided; not enforced. |
-| Facto avoids mixing unrelated changes in a single PR. 📋 (satisfaction survey) | 🟡 `c-impl-plan` scopes changes per plan step; cross-step mixing happens occasionally. Not yet survey-validated. |
+| Facto produces well-structured PRs: each PR is small enough to review easily; has a clear description covering what changed, why, and how to verify; has descriptive commit messages with logical commit splits; and includes explicit test plan / verification steps. 📋 (satisfaction survey) | 🟡 `facto:commit-or-amend` and `facto:pr` handle this; PR description quality is variable and PR size is not enforced. Not yet survey-validated. |
+| Facto references the relevant issue, ticket, or design doc in every PR. | 🟡 `facto:pr` does this when context is provided; not enforced. |
+| Facto avoids mixing unrelated changes in a single PR. 📋 (satisfaction survey) | 🟡 `facto:plan-implementation` scopes changes per plan step; cross-step mixing happens occasionally. Not yet survey-validated. |
 | Each PR includes a risk annotation (e.g., high / medium / low) summarizing the change's overall risk profile. | 🔴 No capability today. |
 | Each PR's summary surfaces specific files, sections, or lines the reviewer should look at first as a priority. | 🔴 No capability today. |
 | Across the 10 most recent Facto-built PRs, ≥8 had developer survey responses of "yes" to: the PR (description + diff) is easy enough to review. 📋 (per-PR developer survey) | 🔴 No survey in place; not tracked. |
@@ -101,9 +101,9 @@ _How Facto operates_
 
 | Target (KR) | Current status |
 |---|---|
-| Facto can independently take an issue from a task tracker (e.g. GitHub Issues, Linear, Jira), debug it, create a fix, and open a PR — with no developer intervention from issue pickup through PR open. | 🟡 `c-bug-fix` handles this when given a GitHub Issue number, running autonomously through PR open and CI monitoring. |
-| Facto can independently take a product spec or impl plan and ship a PR for it — with no developer intervention from kick-off through PR open. | 🟡 `c-implement` handles this when invoked; `c-impl-plan` does not interrupt mid-task for decisions, but overall task reliability can still vary. |
-| Facto can independently iterate on PR feedback (developer comments or external reviewer comments) through to an updated PR — with no developer intervention from feedback receipt through update pushed. | 🟡 `c-iterate` handles this when invoked; same reliability caveats. |
+| Facto can independently take an issue from a task tracker (e.g. GitHub Issues, Linear, Jira), debug it, create a fix, and open a PR — with no developer intervention from issue pickup through PR open. | 🟡 `facto:fix-bug` handles this when given a GitHub Issue number, running autonomously through PR open and CI monitoring. |
+| Facto can independently take a product spec or impl plan and ship a PR for it — with no developer intervention from kick-off through PR open. | 🟡 `facto:implement` handles this when invoked; `facto:plan-implementation` does not interrupt mid-task for decisions, but overall task reliability can still vary. |
+| Facto can independently iterate on PR feedback (developer comments or external reviewer comments) through to an updated PR — with no developer intervention from feedback receipt through update pushed. | 🟡 `facto:iterate` handles this when invoked; same reliability caveats. |
 | Facto can independently review and merge its own *low-risk* changes — no developer review or merge action required. | 🔴 No capability today. |
 | Facto can independently review and merge its own *medium-risk* changes. | 🔴 No capability today. |
 | Facto can independently review and merge its own *high-risk* changes. | 🔴 No capability today. This is the most aspirational tier; treat as a stretch goal. |
@@ -116,10 +116,10 @@ _How Facto operates_
 
 | Target (KR) | Current status |
 |---|---|
-| Facto saves progress incrementally during a task (commits during work, not at end) so partial work survives a session failure. | 🟢 `c-commit-or-amend` and `c-impl-plan` handle this. |
+| Facto saves progress incrementally during a task (commits during work, not at end) so partial work survives a session failure. | 🟢 `facto:commit-or-amend` and `facto:plan-implementation` handle this. |
 | Facto surfaces clear error messages with diagnostic info when something fails (what went wrong, what was tried, where the agent stopped). | 🟡 Skills usually report failures; quality and consistency vary. |
-| Facto gracefully reports blockers (with a summary of what was tried) rather than silently exiting. | 🟡 `c-pr` and `c-implement` have known silent-exit issues. |
-| Facto verifies completion criteria are met before declaring a task done. | 🟡 `c-review-loop` verifies via project commands but skills can still declare done without going through it. |
+| Facto gracefully reports blockers (with a summary of what was tried) rather than silently exiting. | 🟡 `facto:pr` and `facto:implement` have known silent-exit issues. |
+| Facto verifies completion criteria are met before declaring a task done. | 🟡 `facto:review-loop-code` verifies via project commands but skills can still declare done without going through it. |
 
 ## throughput 🔴
 
@@ -181,8 +181,8 @@ _How Facto operates_
 
 | Target (KR) | Current status |
 |---|---|
-| Developer can manually capture failure and success observations and trigger processing into improvement creation. | 🟢 `fi-observe`, `fi-mine-logs`, `fi-mine-web`, and `fi-think` support this today. |
-| Facto automatically captures failure and success observations as it runs, without developer kickoff. | 🔴 Requires developer invocation of `fi-observe`, `fi-mine-logs`, or `fi-mine-web`. |
+| Developer can manually capture failure and success observations and trigger processing into improvement creation. | 🟢 `fi-observe`, `fi-mine-logs`, and `fi-think` support this today. |
+| Facto automatically captures failure and success observations as it runs, without developer kickoff. | 🔴 Requires developer invocation of `fi-observe` or `fi-mine-logs`. |
 | Facto automatically processes captured observations into improvement ideas (no developer kickoff). | 🔴 `fi-think` requires developer invocation; not scheduled. |
 | Facto automatically implements improvement ideas (moving them through the testing → accepted lifecycle without developer kickoff). | 🔴 No capability today. |
 

@@ -12,6 +12,7 @@ Facto is a set of composable Claude Code skills and shell scripts that guide age
 1. [Features](#2---features)
 1. [What does usage look like?](#3---what-does-usage-look-like)
 1. [Setup](#4---setup)
+1. [Full reference](#5---full-reference)
 
 ## 1 - Who is Facto for?
 
@@ -58,7 +59,6 @@ This one will be getting wrapped in a single skill soon :)
 1. `/facto:plan-design`
 1. `/facto:plan-implementation`
 1. `/facto:implement`
-1. `/facto:pr`
 1. `/facto:watch-and-fix-ci`
 
 ## 4 - Setup
@@ -80,7 +80,9 @@ git clone https://github.com/carllelandtaylor/facto.git
 
 Create a symlink from your personal Claude `skills` directory to the Facto plugin in the repo you checked out. (It's weird that you put local plugins in the `skills` dir but [that's how it works](https://code.claude.com/docs/en/plugins#develop-a-plugin-in-your-skills-directory).)
 ```bash
-ln -s <Facto repo checkout path>/plugins/facto ~/.claude/skills/facto
+cd facto    # the directory the clone created
+mkdir -p ~/.claude/skills
+ln -s "$(pwd)/plugins/facto" ~/.claude/skills/facto
 ```
 Because it's a symlink, edits in the repo go live everywhere immediately. Start a new Claude Code session (or run `/reload-plugins`) to pick it up.
 
@@ -94,7 +96,7 @@ Open Claude Code in the project you're building and run `/facto:setup-facto`. Th
 **Setup is now complete!**
 
 ---
-## 4 - Full reference
+## 5 - Full reference
 
 There are a lot of skills and commands in Facto, so here's a full reference.
 
@@ -106,7 +108,7 @@ Facto is built around a simple high-level workflow:
 1. **Review** — review the PR on GitHub and merge when happy.
 1. **End the task** — run `task-end` to clean up the worktree and (if merged) delete the branch.
 
-### 4-1 - Worktree management: `task-*` shell scripts
+### 5-1 - Worktree management: `task-*` shell scripts
 
 Facto makes it easy to work on multiple unrelated tasks in parallel on one machine via git worktrees. Without Facto, creating worktrees manually isn't hard -- but setting each worktree up so each has its own server, database, port selections, etc. can be. Facto provides a framework for automating isolated worktree setup and teardown.
 
@@ -131,7 +133,7 @@ What you put in your setup/teardown scripts will depend on your project, but cou
 * setting environment variables to establish unique port numbers for worktree servers to run on
 * making a dev database clone just for this worktree so migrations and data changes are isolated
 
-### 4-2 - Task execution: `/facto:*` skills
+### 5-2 - Task execution: `/facto:*` skills
 Once you're in an isolated worktree, or if you're only working on a single task per repo, use the `/facto:*` skills to do the work.
 
 Facto skills fall into two categories (some skills are both):
@@ -172,6 +174,11 @@ The mechanics reference for producing the Figma-style interactive HTML design-mo
 ###### `/facto:ref-design-system`
 The reference skill defining the contract for **project-wide, evergreen design documentation**: the `docs/design/` layout (a top-level `index.md`, and per surface a `design-system.md` plus per-view specs under `views/`), the "view" model (`screen`, `region`, and `overlay` as inclusive examples, not an exhaustive taxonomy), and the upsert routine that keeps it current. `/facto:plan-design` reads these docs and upserts them after each design task; the docs persist across tasks, unlike the per-task design mock. (Bootstrapped for existing apps by `/facto:setup-design`.)
 
+#### Research
+
+###### `/facto:research`
+Turns a research question into a dated, cited HTML report. Scopes the question, runs parallel research subagents, synthesizes the report, then runs an adversarial fact-check loop to catch fabrications and stale claims before delivery. Use for deep-dives, comparisons, or competitive/market context.
+
 #### Pipeline
 
 Start here if you already have requirements (or use one of the front-of-funnel skills first).
@@ -195,6 +202,11 @@ After a PR is open, applies follow-up feedback. Makes the code change, then hand
 
 ##### `/facto:commit-or-amend`
 Looks at uncommitted changes, decides which existing commit each change belongs to, and folds them in (amend or fixup) — or creates a net-new commit if the change is genuinely independent. Used throughout the pipeline; also useful directly.
+
+#### Issue tracking
+
+###### `/facto:observe`
+Captures an observation about the product or app you're building as a GitHub Issue — a few words in, a well-formed Issue out. Routes it to a matching open or recently-closed Issue (commenting) or opens a new one, and can close an Issue on its own when positive evidence is strong.
 
 #### Bug fixing
 

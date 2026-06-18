@@ -7,8 +7,8 @@ labels: []
 
 <!--
 Title rule: state the problem, not a proposed fix — the same problem may attract several fix attempts and the title must outlive them.
-    ✅ BUG: c-pr subagent exits after commit, skipping push and PR update
-    ❌ Add re-read anchors at c-implement phase boundaries (that's the fix)
+    ✅ BUG: facto:pr subagent exits after commit, skipping push and PR update
+    ❌ Add re-read anchors at facto:implement phase boundaries (that's the fix)
 -->
 
 ## What's happening
