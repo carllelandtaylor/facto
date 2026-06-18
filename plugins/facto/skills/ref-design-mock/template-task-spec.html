@@ -1,0 +1,1251 @@
+<!--
+  facto:ref-design-mock task-spec canvas template (for designing a new feature in a task dir).
+
+  HOW TO USE:
+    1. Replace every [TODO: ...] marker with generated content.
+    2. FILL AREAS: every dashed `.design-slot` box marks exactly the region
+       to replace with real design. Replace the slot's CONTENTS — never the
+       surrounding device chrome (status bar / gesture bar / window frame).
+    3. The bands (cover, then the five canonical bands: flow, states,
+       components, before/after, tokens) are labeled scaffolding — each
+       band's header comment says what it's for and when to duplicate or
+       remove it. Add or remove frames/slots as the design requires.
+    4. FRAME TYPES: pick .phone.android / .phone.ios / .browser by target
+       platform; use .bare-frame for components. The Appendix band shows each.
+    5. Token :root block below: replace placeholder values with values generated
+       from <product>/docs/design/<surface>/design-system.md at runtime. Never write
+       product token values into THIS file — keep it project-agnostic.
+
+  APPENDIX: the last band is a frame-type reference — DELETE it when filling
+  the template.
+
+  LOAD-BEARING — do not change without understanding the implications:
+    - .canvas-board: flex-wrap:nowrap + width:max-content keep horizontal
+      rows of frames from collapsing into a single column.
+    - fit() runs on load AND after 250 ms — the second call catches layout
+      shifts from fonts/images that settle after DOMContentLoaded.
+    - Serve over HTTP (not file://) if frames contain cross-origin resources.
+
+  PROJECT-AGNOSTIC WARNING:
+    Never write product token values, brand colors, product font names, or
+    product-specific copy into this file. All such values are generated at
+    runtime from each product's design-system.md and injected into the output.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><!-- TODO: Feature name --> — <!-- TODO: YYYY-MM-DD --></title>
+<style>
+  /*
+   * ── TOKEN PLACEHOLDER BLOCK ───────────────────────────────────────────────
+   * TODO: generated from <product>/docs/design/<surface>/design-system.md
+   *
+   * Expected token names to replace:
+   *   Color:    --color-primary, --color-secondary, --color-success,
+   *             --color-warning, --color-error, --color-info,
+   *             --color-bg, --color-surface, --color-surface-raised
+   *   Text:     --color-text, --color-text-muted, --color-text-on-primary
+   *   Border:   --color-border, --color-border-strong
+   *   Spacing:  --space-xs (4px), --space-sm (8px), --space-md (16px),
+   *             --space-lg (24px), --space-xl (40px)
+   *   Radius:   --radius-sm (4px), --radius-md (8px), --radius-lg (16px),
+   *             --radius-full (9999px)
+   *   Type scale classes: .type-display, .type-heading, .type-subheading,
+   *             .type-body, .type-caption, .type-label
+   *
+   * The neutral values below keep the scaffold renderable before tokens are
+   * filled. Replace ALL values marked "replace-from-design-system".
+   */
+  :root {
+    /* replace-from-design-system → product color tokens */
+    --color-primary:         #0057b7;
+    --color-secondary:       #5e35b1;
+    --color-success:         #2e7d32;
+    --color-warning:         #e65100;
+    --color-error:           #c62828;
+    --color-info:            #01579b;
+
+    /* replace-from-design-system → product surface tokens */
+    --color-bg:              #fafafa;
+    --color-surface:         #ffffff;
+    --color-surface-raised:  #f4f4f4;
+
+    /* replace-from-design-system → product text tokens */
+    --color-text:            #1a1a1a;
+    --color-text-muted:      #666666;
+    --color-text-on-primary: #ffffff;
+
+    /* replace-from-design-system → product border tokens */
+    --color-border:          #d0d0d0;
+    --color-border-strong:   #999999;
+
+    /* replace-from-design-system → product spacing tokens */
+    --space-xs:   4px;
+    --space-sm:   8px;
+    --space-md:   16px;
+    --space-lg:   24px;
+    --space-xl:   40px;
+
+    /* replace-from-design-system → product radius tokens */
+    --radius-sm:   4px;
+    --radius-md:   8px;
+    --radius-lg:   16px;
+    --radius-full: 9999px;
+
+    /* Aliases used by the frame kit below (do not remove) */
+    --surface:         var(--color-surface);
+    --surface-variant: var(--color-surface-raised);
+    --border:          var(--color-border);
+    --text:            var(--color-text);
+    --text-muted:      var(--color-text-muted);
+  }
+
+  /* Dark theme override — mirrors the tokens above for .t-dark frames.
+     replace-from-design-system → product dark-theme token values (these
+     neutral defaults keep the scaffold renderable until they are filled). */
+  .t-dark {
+    --color-bg:              #111111;
+    --color-surface:         #1c1c1e;
+    --color-surface-raised:  #2c2c2e;
+    --color-text:            #f2f2f7;
+    --color-text-muted:      #8e8e93;
+    --color-border:          #3a3a3c;
+    --color-border-strong:   #636366;
+
+    --surface:         var(--color-surface);
+    --surface-variant: var(--color-surface-raised);
+    --border:          var(--color-border);
+    --text:            var(--color-text);
+    --text-muted:      var(--color-text-muted);
+  }
+
+  /* ── Canvas chrome ─────────────────────────────────────────── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Fill the full viewport height with consistent margin on all sides */
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .canvas-wrap {
+    flex: 1;
+    min-height: 0; /* allow flex child to shrink below content size */
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  /* Toolbar: zoom-out | readout | zoom-in | fit */
+  .canvas-toolbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    background: #f0f0f0;
+    border-bottom: 1px solid #d0d0d0;
+  }
+  .canvas-toolbar button {
+    padding: 0.2rem 0.55rem;
+    font-size: 0.9rem;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .canvas-toolbar button:hover { background: #e8e8e8; }
+  #zoom-label {
+    min-width: 3.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #555;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Viewport: fills remaining height of .canvas-wrap after the toolbar */
+  .canvas-viewport {
+    flex: 1;
+    min-height: 0; /* allow flex child to shrink below content size */
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+    background-color: #fafafa;
+  }
+  .canvas-viewport.grabbing { cursor: grabbing; }
+
+  /* Board: the infinite surface that gets translated + scaled.
+     flex-wrap: nowrap + width: max-content keep the board from collapsing
+     into a single column when a flex row of frames is laid out horizontally. */
+  .canvas-board {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    width: max-content;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4rem;
+    align-items: flex-start;
+    background-image: radial-gradient(circle, #ccc 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: 0 0;
+  }
+
+  /* ── Band: a labeled horizontal row of frames ───────────────── */
+  .band {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .band-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #d0d0d0;
+  }
+  .band-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+  }
+  .band-sublabel {
+    font-size: 0.78rem;
+    color: #888;
+    font-weight: 400;
+  }
+  .band-frames {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 2.5rem;
+    align-items: flex-start;
+  }
+
+  /* ── Frame wrapper: label above the device chrome ──────────── */
+  .frame {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .frame-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #888;
+    white-space: nowrap;
+  }
+
+  /* ── DESIGN SLOT ──────────────────────────────────────────────
+     THE FILL AREA. The skill REPLACES the contents of every
+     .design-slot with the real screen / component design. The dashed
+     box marks exactly the region the design occupies — inside the
+     device chrome (status bar + gesture bar), edge-to-edge. Replace
+     the slot's contents, never the surrounding chrome. */
+  .design-slot {
+    flex: 1;
+    border: 1.5px dashed #c0c0c0;
+    border-radius: 6px;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 0.75rem;
+    min-height: 80px;
+  }
+  /* Inside a phone/browser screen, the slot fills edge-to-edge:
+     only top/bottom dashed rules demarcate it (no side gaps). */
+  .screen-body .design-slot,
+  .browser-page .design-slot {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    padding: 0;
+    min-height: 0;
+  }
+
+  /* ── Connector arrow between frames in the flow band ───────── */
+  .connector {
+    display: flex;
+    align-items: center;
+    align-self: center;
+    color: #aaa;
+    font-size: 1.4rem;
+    margin-top: 2rem; /* visual center relative to phone frame + label */
+    flex-shrink: 0;
+  }
+
+  /* ── Cover band specifics ───────────────────────────────────── */
+  .cover-card {
+    background: #fff;
+    border: 1px solid #d0d0d0;
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    min-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .cover-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    letter-spacing: -0.01em;
+  }
+  .cover-meta {
+    font-size: 0.82rem;
+    color: #777;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .cover-meta span { white-space: nowrap; }
+  /* ── Token reference band — swatches, type scale, spacing ───── */
+  .token-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .token-section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #888;
+  }
+  .swatch-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+  .swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .swatch-block {
+    width: 56px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+  .swatch-name {
+    font-size: 0.62rem;
+    color: #888;
+    text-align: center;
+    max-width: 60px;
+    word-break: break-all;
+  }
+  .type-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    min-width: 260px;
+  }
+  .type-specimen {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+  .type-token-name {
+    font-size: 0.65rem;
+    color: #aaa;
+    font-family: ui-monospace, monospace;
+    min-width: 110px;
+    flex-shrink: 0;
+  }
+  .spacing-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+  }
+  .spacing-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .spacing-bar {
+    background: #b0c8f0;
+    border-radius: 2px;
+    width: 12px;
+  }
+  .spacing-label {
+    font-size: 0.62rem;
+    color: #888;
+    font-family: ui-monospace, monospace;
+  }
+  .radius-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .radius-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .radius-shape {
+    width: 44px;
+    height: 28px;
+    background: #d0d8e8;
+    border: 1px solid #b0bcd0;
+  }
+  .radius-label {
+    font-size: 0.62rem;
+    color: #888;
+    font-family: ui-monospace, monospace;
+    text-align: center;
+  }
+
+  /* ── PHONE frame ────────────────────────────────────────────── */
+  /* Outer bezel — shared by android and ios variants */
+  .phone {
+    border: 10px solid #111;
+    border-radius: 44px;
+    background: #111;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.35), inset 0 0 0 1px #333;
+  }
+
+  /* The screen surface — true device dp width (393px = modern mid-size phone).
+     Size is variable-driven: for a device-accurate mock, set --screen-width /
+     --screen-height (to the measured logical viewport) rather than redeclaring
+     .phone-screen — the template only *consumes* these vars, so your value wins
+     uncontested regardless of stylesheet order. The fallbacks are the generic
+     default. */
+  .phone-screen {
+    width: var(--screen-width, 393px);
+    height: var(--screen-height, 760px);
+    border-radius: 34px;
+    overflow: hidden;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar — common layout, platform-specific content via variants */
+  .status-bar {
+    flex-shrink: 0;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: var(--surface);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .status-bar .sb-time { flex: 1; }
+  .status-bar .sb-icons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  /* Android: time left-aligned, icons right */
+  .phone.android .status-bar { justify-content: space-between; }
+  .phone.android .sb-time { text-align: left; }
+
+  /* iOS: time centered (absolute), icons pushed right */
+  .phone.ios .status-bar { position: relative; justify-content: flex-end; }
+  .phone.ios .sb-time {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 15px;
+  }
+
+  /* Screen body — fills all space between status bar and gesture bar; no padding */
+  .screen-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+  }
+
+  /* Bottom indicator — single thin gesture bar overlaying the bottom of the screen */
+  .bottom-indicator {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+  }
+
+  /* Android: single centered gesture bar (modern swipe navigation) */
+  .phone.android .bottom-indicator { height: 24px; }
+  .phone.android .nav-pill {
+    width: 128px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--text);
+    opacity: 0.2;
+  }
+
+  /* iOS: single home indicator bar */
+  .phone.ios .bottom-indicator { height: 28px; }
+  .phone.ios .home-indicator {
+    width: 120px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--text);
+    opacity: 0.18;
+  }
+
+  /* ── WEB frame ──────────────────────────────────────────────────
+     A bare browser viewport — no window chrome or address bar, so the
+     design fills the whole page and the skill never has to invent a URL.
+     The .browser-page IS the design fill area (edge-to-edge, no padding). */
+  /* Width is variable-driven: for a device-accurate web mock, set --frame-width
+     to the measured viewport (e.g. 1280) rather than redeclaring .browser — the
+     template only *consumes* this var, so your value wins uncontested regardless
+     of stylesheet order, and the page is never clipped by a too-narrow frame.
+     The 720px fallback is the generic default. */
+  .browser {
+    border: 2px solid var(--border, #d0d0d0);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.12);
+    background: var(--surface, #fff);
+    width: var(--frame-width, 720px);
+  }
+
+  /* Web page content area — the design fill area, edge-to-edge */
+  .browser-page {
+    background: var(--surface);
+    min-height: 440px;
+    display: flex;
+    flex-direction: column;
+    color: var(--text);
+  }
+
+  /* ── BARE frame ─────────────────────────────────────────────── */
+  /* No device chrome — plain neutral surface, useful for component isolation */
+  .bare-frame {
+    border: 1px dashed #bbb;
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 1.5rem;
+    width: 340px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-wrap">
+  <div class="canvas-toolbar">
+    <button id="btn-zoom-out" title="Zoom out">-</button>
+    <span id="zoom-label">100%</span>
+    <button id="btn-zoom-in"  title="Zoom in">+</button>
+    <button id="btn-reset"    title="Reset to 100%">100%</button>
+    <button id="btn-fit"      title="Fit to viewport">Fit</button>
+  </div>
+
+  <div class="canvas-viewport" id="viewport">
+    <!--
+      Board: flex column of bands; each band is a flex row of frames.
+      flex-wrap: nowrap + width: max-content on .canvas-board keep the board
+      from collapsing — required so frame rows lay out horizontally.
+    -->
+    <div class="canvas-board" id="board">
+
+      <!-- ══════════════════════════════════════════════════════════
+           COVER — feature identity card (the title block for the mock).
+           ══════════════════════════════════════════════════════════ -->
+      <div class="band">
+        <div class="band-frames">
+          <div class="cover-card">
+            <!-- TODO: replace with feature name -->
+            <div class="cover-title">Feature Name</div>
+            <div class="cover-meta">
+              <!-- TODO: replace with actual date (YYYY-MM-DD) -->
+              <span>Date: YYYY-MM-DD</span>
+              <!-- TODO: replace with author / squad -->
+              <span>Author: TODO</span>
+            </div>
+          </div>
+        </div>
+      </div><!-- /band cover -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           BAND 1 — FLOW / OVERVIEW
+           Screens in navigation order with connector arrows between them.
+           Shows the happy-path journey from entry to goal.
+           ══════════════════════════════════════════════════════════ -->
+      <div class="band">
+        <div class="band-header">
+          <span class="band-label">Flow / Overview</span>
+          <span class="band-sublabel">Screens in navigation order — happy path</span>
+        </div>
+        <div class="band-frames">
+
+          <!-- TODO: replace screen-body stub with the first screen of the flow -->
+          <div class="frame">
+            <span class="frame-title"><!-- TODO: Screen 1 name --></span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: screen 1 content -->
+                  <div class="design-slot">Screen 1</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Connector: tap / swipe / CTA navigates to next screen -->
+          <!-- TODO: replace arrow label with the action that triggers navigation -->
+          <div class="connector" title="Navigation action">
+            &#x2192;<!-- TODO: label, e.g. "Tap CTA" -->
+          </div>
+
+          <!-- TODO: replace screen-body stub with the second screen of the flow -->
+          <div class="frame">
+            <span class="frame-title"><!-- TODO: Screen 2 name --></span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: screen 2 content -->
+                  <div class="design-slot">Screen 2</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TODO: add more frame + connector pairs as needed for additional flow steps -->
+
+        </div>
+      </div><!-- /band 1 flow -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           BAND 2 — PER-SCREEN STATES
+           One screen shown across its loading / loaded / empty / error states.
+           Repeat this band once per key screen if multiple screens have
+           non-trivial states.
+           ══════════════════════════════════════════════════════════ -->
+      <div class="band">
+        <div class="band-header">
+          <span class="band-label">Per-Screen States</span>
+          <!-- TODO: replace screen name in sublabel -->
+          <span class="band-sublabel"><!-- TODO: Screen name --> — loading / loaded / empty / error</span>
+        </div>
+        <div class="band-frames">
+
+          <!-- Loading state -->
+          <div class="frame">
+            <span class="frame-title">Loading</span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: loading state — skeletons, spinners, progress -->
+                  <div class="design-slot">Loading state</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loaded / success state -->
+          <div class="frame">
+            <span class="frame-title">Loaded</span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: loaded state — full data, primary content -->
+                  <div class="design-slot">Loaded state</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div class="frame">
+            <span class="frame-title">Empty</span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: empty state — zero-data illustration, CTA to populate -->
+                  <div class="design-slot">Empty state</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error state -->
+          <div class="frame">
+            <span class="frame-title">Error</span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: error state — error message, retry CTA -->
+                  <div class="design-slot">Error state</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /band 2 per-screen states -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           BAND 3 — COMPONENTS IN ISOLATION
+           Each bare frame = one logically related group of components (e.g.
+           all variants of a single component, or a tightly related set like
+           a checkbox + its label). Do NOT mix unrelated components in the
+           same frame. Use as many or as few frames as there are natural
+           groupings — two is fine, six is fine, four is not a target.
+           ══════════════════════════════════════════════════════════ -->
+      <div class="band">
+        <div class="band-header">
+          <span class="band-label">Components in Isolation</span>
+          <span class="band-sublabel">Key components and their variants — no device chrome</span>
+        </div>
+        <div class="band-frames">
+
+          <!-- One frame per logical component group. Each frame holds one
+               component (or a tightly related set) across its variants.
+               Add or remove frames freely — use as many as needed. -->
+
+          <!-- TODO: rename the frame title and fill in variants for this group -->
+          <div class="frame">
+            <span class="frame-title"><!-- TODO: Component name --></span>
+            <div class="bare-frame t-light">
+              <div class="design-slot" style="height:60px">Default variant</div>
+              <div class="design-slot" style="height:60px">Variant 2</div>
+              <div class="design-slot" style="height:60px;opacity:0.5">Disabled</div>
+            </div>
+          </div>
+
+          <!-- TODO: add one frame per additional component group -->
+          <div class="frame">
+            <span class="frame-title"><!-- TODO: Component name --></span>
+            <div class="bare-frame t-light">
+              <div class="design-slot" style="height:60px">Default variant</div>
+              <div class="design-slot" style="height:60px">Variant 2</div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /band 3 components -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           BAND 4 — BEFORE / AFTER
+           Changed screens side-by-side: what exists today vs. the new design.
+           Only include this band if the feature modifies existing screens.
+           If it's a net-new feature with no changed screens, remove the band.
+           ══════════════════════════════════════════════════════════ -->
+      <div class="band">
+        <div class="band-header">
+          <span class="band-label">Before / After</span>
+          <!-- TODO: replace screen name in sublabel -->
+          <span class="band-sublabel"><!-- TODO: Screen name --> — current state vs. new design</span>
+        </div>
+        <div class="band-frames">
+
+          <!-- Before: current / existing screen -->
+          <div class="frame">
+            <span class="frame-title">Before</span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: current/existing screen design — what users see today -->
+                  <div class="design-slot">Existing design</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider arrow -->
+          <div class="connector">&#x21E8;</div>
+
+          <!-- After: new design for the same screen -->
+          <div class="frame">
+            <span class="frame-title">After</span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: new design for the same screen -->
+                  <div class="design-slot">New design</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TODO: add more before/after pairs for additional changed screens -->
+
+        </div>
+      </div><!-- /band 4 before/after -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           BAND 5 — TOKEN REFERENCE
+           Color swatches, type-scale specimens, spacing and radius tiles —
+           all driven by the :root token block at the top of <style>.
+           Replace the stub labels with real token names from design-system.md.
+           ══════════════════════════════════════════════════════════ -->
+      <div class="band">
+        <div class="band-header">
+          <span class="band-label">Token Reference</span>
+          <span class="band-sublabel">Color · Type · Spacing · Radius — from design-system.md</span>
+        </div>
+        <div class="band-frames" style="flex-wrap:wrap;gap:2rem">
+
+          <!-- Color swatches -->
+          <div class="token-section">
+            <div class="token-section-label">Color</div>
+            <div class="swatch-row">
+              <!-- TODO: replace background values and names with product color tokens -->
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-primary)"></div>
+                <div class="swatch-name">--color-primary</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-secondary)"></div>
+                <div class="swatch-name">--color-secondary</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-success)"></div>
+                <div class="swatch-name">--color-success</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-warning)"></div>
+                <div class="swatch-name">--color-warning</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-error)"></div>
+                <div class="swatch-name">--color-error</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-surface)"></div>
+                <div class="swatch-name">--color-surface</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-surface-raised)"></div>
+                <div class="swatch-name">--color-surface-raised</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-text)"></div>
+                <div class="swatch-name">--color-text</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background:var(--color-text-muted)"></div>
+                <div class="swatch-name">--color-text-muted</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Type scale -->
+          <div class="token-section">
+            <div class="token-section-label">Type scale</div>
+            <div class="type-row">
+              <!-- TODO: replace font-size/weight with product type-scale values;
+                   add/remove rows to match .type-* classes in design-system.md -->
+              <div class="type-specimen">
+                <span class="type-token-name">.type-display</span>
+                <!-- TODO: font-size, font-weight from design-system.md -->
+                <span style="font-size:2rem;font-weight:700;color:var(--color-text)">Display</span>
+              </div>
+              <div class="type-specimen">
+                <span class="type-token-name">.type-heading</span>
+                <span style="font-size:1.4rem;font-weight:600;color:var(--color-text)">Heading</span>
+              </div>
+              <div class="type-specimen">
+                <span class="type-token-name">.type-subheading</span>
+                <span style="font-size:1.1rem;font-weight:600;color:var(--color-text)">Subheading</span>
+              </div>
+              <div class="type-specimen">
+                <span class="type-token-name">.type-body</span>
+                <span style="font-size:1rem;font-weight:400;color:var(--color-text)">Body — the quick brown fox</span>
+              </div>
+              <div class="type-specimen">
+                <span class="type-token-name">.type-caption</span>
+                <span style="font-size:0.8rem;font-weight:400;color:var(--color-text-muted)">Caption text</span>
+              </div>
+              <div class="type-specimen">
+                <span class="type-token-name">.type-label</span>
+                <span style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-muted)">Label</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spacing scale -->
+          <div class="token-section">
+            <div class="token-section-label">Spacing</div>
+            <div class="spacing-row">
+              <!-- TODO: adjust bar heights to match product spacing values -->
+              <div class="spacing-block">
+                <div class="spacing-bar" style="height:var(--space-xs)"></div>
+                <div class="spacing-label">--space-xs<br>4px</div>
+              </div>
+              <div class="spacing-block">
+                <div class="spacing-bar" style="height:var(--space-sm)"></div>
+                <div class="spacing-label">--space-sm<br>8px</div>
+              </div>
+              <div class="spacing-block">
+                <div class="spacing-bar" style="height:var(--space-md)"></div>
+                <div class="spacing-label">--space-md<br>16px</div>
+              </div>
+              <div class="spacing-block">
+                <div class="spacing-bar" style="height:var(--space-lg)"></div>
+                <div class="spacing-label">--space-lg<br>24px</div>
+              </div>
+              <div class="spacing-block">
+                <div class="spacing-bar" style="height:var(--space-xl)"></div>
+                <div class="spacing-label">--space-xl<br>40px</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Radius scale -->
+          <div class="token-section">
+            <div class="token-section-label">Radius</div>
+            <div class="radius-row">
+              <!-- TODO: adjust border-radius values to match product radius tokens -->
+              <div class="radius-block">
+                <div class="radius-shape" style="border-radius:var(--radius-sm)"></div>
+                <div class="radius-label">--radius-sm<br>4px</div>
+              </div>
+              <div class="radius-block">
+                <div class="radius-shape" style="border-radius:var(--radius-md)"></div>
+                <div class="radius-label">--radius-md<br>8px</div>
+              </div>
+              <div class="radius-block">
+                <div class="radius-shape" style="border-radius:var(--radius-lg)"></div>
+                <div class="radius-label">--radius-lg<br>16px</div>
+              </div>
+              <div class="radius-block">
+                <div class="radius-shape" style="border-radius:var(--radius-full)"></div>
+                <div class="radius-label">--radius-full<br>pill</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /band 5 token reference -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           APPENDIX — FRAME REFERENCE
+           ⚠️  REMOVE THIS ENTIRE BAND before publishing / sharing
+           the design mock. It exists only as a reference for the
+           frame types available in this template.
+           ══════════════════════════════════════════════════════════ -->
+      <div class="band" style="opacity:0.7">
+        <div class="band-header" style="border-bottom-color:#f0a000">
+          <span class="band-label" style="color:#c07000">⚠ Appendix — Frame Reference (remove before publishing)</span>
+          <span class="band-sublabel">Available frame types. Delete this entire band when filling the template.</span>
+        </div>
+        <div class="band-frames">
+
+          <div class="frame">
+            <span class="frame-title">Android</span>
+            <div class="phone android">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <div class="design-slot">Android</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="frame">
+            <span class="frame-title">iOS</span>
+            <div class="phone ios">
+              <div class="phone-screen t-light">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <div class="design-slot">iOS</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="home-indicator"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="frame">
+            <span class="frame-title">Web</span>
+            <div class="browser">
+              <div class="browser-page">
+                <div class="design-slot">Web</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="frame">
+            <span class="frame-title">Bare component</span>
+            <div class="bare-frame t-light" style="min-height:200px">
+              <div class="design-slot" style="flex:1">Bare component</div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /appendix -->
+
+    </div><!-- /.canvas-board -->
+  </div><!-- /.canvas-viewport -->
+</div><!-- /.canvas-wrap -->
+
+<script>
+(function () {
+  'use strict';
+
+  const viewport  = document.getElementById('viewport');
+  const board     = document.getElementById('board');
+  const zoomLabel = document.getElementById('zoom-label');
+
+  // Current transform state
+  let tx = 0, ty = 0, scale = 1;
+
+  const MIN_SCALE = 0.1;
+  const MAX_SCALE = 4;
+  const ZOOM_STEP = 0.15; // fractional change per button click
+
+  // Apply transform and update readout
+  function applyTransform() {
+    board.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    zoomLabel.textContent = Math.round(scale * 100) + '%';
+  }
+
+  // ── Fit: scale board to fill viewport with a small margin ──────────────
+  function fit() {
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+    const bw = board.scrollWidth;
+    const bh = board.scrollHeight;
+
+    if (!vw || !vh || !bw || !bh) return; // guard zero/NaN before font/image settle
+
+    const margin = 32; // px padding inside the viewport
+    const s = Math.min((vw - margin) / bw, (vh - margin) / bh, MAX_SCALE);
+    scale = Math.max(MIN_SCALE, s);
+
+    // Center horizontally; small top margin
+    tx = (vw - bw * scale) / 2;
+    ty = margin / 2;
+
+    applyTransform();
+  }
+
+  // Fit on load (immediate) and again after fonts/images settle
+  window.addEventListener('load', fit);
+  setTimeout(fit, 250);
+
+  // ── Pan: drag inside the viewport ─────────────────────────────────────
+  let dragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let txAtDragStart = 0, tyAtDragStart = 0;
+
+  viewport.addEventListener('mousedown', (e) => {
+    // Only primary button; ignore clicks on buttons
+    if (e.button !== 0 || e.target.closest('button')) return;
+    dragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    txAtDragStart = tx;
+    tyAtDragStart = ty;
+    viewport.classList.add('grabbing');
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    tx = txAtDragStart + (e.clientX - dragStartX);
+    ty = tyAtDragStart + (e.clientY - dragStartY);
+    applyTransform();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    viewport.classList.remove('grabbing');
+  });
+
+  // ── Wheel: Ctrl/Cmd+wheel = zoom anchored at cursor; plain = pan ───────
+  viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+
+    if (e.ctrlKey || e.metaKey) {
+      // Zoom anchored at the cursor point so it stays fixed
+      const rect   = viewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left; // cursor in viewport coords
+      const mouseY = e.clientY - rect.top;
+
+      // Board-space position under the cursor (invariant across the zoom)
+      const boardX = (mouseX - tx) / scale;
+      const boardY = (mouseY - ty) / scale;
+
+      // Compute new scale (pinch uses deltaY; browser normalises sign)
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * (1 + delta)));
+
+      // Re-anchor: translate so boardX/boardY is still under the cursor
+      tx = mouseX - boardX * scale;
+      ty = mouseY - boardY * scale;
+    } else {
+      // Plain wheel = pan
+      tx -= e.deltaX;
+      ty -= e.deltaY;
+    }
+
+    applyTransform();
+  }, { passive: false });
+
+  // ── Toolbar buttons ────────────────────────────────────────────────────
+  function zoomAboutCenter(factor) {
+    const cx = viewport.clientWidth  / 2;
+    const cy = viewport.clientHeight / 2;
+    const boardX = (cx - tx) / scale;
+    const boardY = (cy - ty) / scale;
+    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
+    tx = cx - boardX * scale;
+    ty = cy - boardY * scale;
+    applyTransform();
+  }
+
+  document.getElementById('btn-zoom-in' ).addEventListener('click', () => zoomAboutCenter(1 + ZOOM_STEP));
+  document.getElementById('btn-zoom-out').addEventListener('click', () => zoomAboutCenter(1 - ZOOM_STEP));
+  document.getElementById('btn-reset'   ).addEventListener('click', () => { scale = 1; tx = 0; ty = 0; applyTransform(); });
+  document.getElementById('btn-fit'     ).addEventListener('click', fit);
+
+})();
+</script>
+
+</body>
+</html>
