@@ -41,13 +41,13 @@ By default, look for any existing planning docs in the task directory (resolved 
 
 ## Optional: Active Issue context
 
-If `factory.sh tracker.exists` succeeds and `factory.sh current-issue` prints an issue number, fetch the Issue's body and comments and treat them as additional **requirements input** alongside any explicit PRD or design docs:
+If `facto-helper.sh tracker.exists` succeeds and `facto-helper.sh current-issue` prints an issue number, fetch the Issue's body and comments and treat them as additional **requirements input** alongside any explicit PRD or design docs:
 
 ```bash
-if factory.sh tracker.exists 2>/dev/null; then
-  ISSUE_NUMBER="$(factory.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
+if facto-helper.sh tracker.exists 2>/dev/null; then
+  ISSUE_NUMBER="$(facto-helper.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
   if [[ -n "$ISSUE_NUMBER" ]]; then
-    REPO_SLUG="$(factory.sh tracker.field repo)"
+    REPO_SLUG="$(facto-helper.sh tracker.field repo)"
     gh issue view "$ISSUE_NUMBER" --repo "$REPO_SLUG" --json title,body,comments
   fi
 fi
@@ -151,12 +151,12 @@ Skip decisions that are obvious from the codebase patterns or the requirements.
 All planning docs for one task live together in a single per-task directory: `facto-tasks/<task-slug>/`. Resolve the plan path with the shared helper so every skill agrees on the same location:
 
 ```bash
-PLAN_PATH="$(factory.sh task-dir)/implementation-plan.md"
+PLAN_PATH="$(facto-helper.sh task-dir)/implementation-plan.md"
 ```
 
-If `factory.sh task-dir` fails (e.g. you're not in a task worktree / on a feature branch), ask the developer for a short kebab-case slug and resolve it with `PLAN_PATH="$(factory.sh task-dir "<slug>")/implementation-plan.md"`.
+If `facto-helper.sh task-dir` fails (e.g. you're not in a task worktree / on a feature branch), ask the developer for a short kebab-case slug and resolve it with `PLAN_PATH="$(facto-helper.sh task-dir "<slug>")/implementation-plan.md"`.
 
-`factory.sh task-dir` already returns an absolute path, so `PLAN_PATH` is fully qualified — keep it that way. Every reference to the plan in this skill (the Phase 4 announcement and the Phase 6 share message) must use this fully qualified path the developer can click or paste directly; never display it as a repo-relative path.
+`facto-helper.sh task-dir` already returns an absolute path, so `PLAN_PATH` is fully qualified — keep it that way. Every reference to the plan in this skill (the Phase 4 announcement and the Phase 6 share message) must use this fully qualified path the developer can click or paste directly; never display it as a repo-relative path.
 
 Create the directory if it doesn't exist (`mkdir -p "$(dirname "$PLAN_PATH")"`). Announce the path to the developer, then proceed to Phase 5:
 

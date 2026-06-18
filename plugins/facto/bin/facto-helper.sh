@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# factory.sh — read .facto/settings.json from the host repo.
+# facto-helper.sh — internal resolver for Facto's skills.
 #
-# Usage: factory.sh [--root <path>] <subcommand> [args...]
+# This is the single read-only chokepoint the Facto skills shell out to in order
+# to answer questions about the current repo and task: it reads the host repo's
+# .facto/settings.json and inspects git state to resolve tracker config, the
+# active issue number, the canonical task slug, and the per-task planning-doc
+# directory. Centralizing that logic here (slug normalization, the "UNKNOWN-"
+# convention, the tasks_dir override) keeps it out of the individual skills.
+#
+# NOT a user command. You are not meant to run this by hand — the skills and the
+# task-*.sh scripts call it for you. It changes nothing; every subcommand is a
+# lookup that prints to stdout (or sets an exit code).
+#
+# Usage (invoked by skills, not humans): facto-helper.sh [--root <path>] <subcommand> [args...]
 #
 # Options:
 #   --root <path>              — use <path> as the repo root instead of git rev-parse --show-toplevel
@@ -226,5 +237,5 @@ fi
 # Unknown subcommand
 # ──────────────────────────────────────────────────────────────────────────────
 echo "ERROR: unknown subcommand '$subcommand'" >&2
-echo "Usage: factory.sh [--root <path>] tracker.exists | tracker.field <path> | current-issue | task-slug | task-dir" >&2
+echo "Usage: facto-helper.sh [--root <path>] tracker.exists | tracker.field <path> | current-issue | task-slug | task-dir" >&2
 exit 1

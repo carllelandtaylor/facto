@@ -1,7 +1,7 @@
 #!/bin/bash
 # task-start.test.sh — parsing matrix tests for bin/task-start.sh
 #
-# Sets up a throwaway git repo with stub gh + factory.sh on PATH.
+# Sets up a throwaway git repo with stub gh + facto-helper.sh on PATH.
 # Each case runs in a subshell so the parent CWD and env are not polluted.
 # The stub gh returns a bug label so the expected prefix is always "fix"
 # for issue-mode cases.
@@ -32,7 +32,7 @@ git -C "$_TMP" remote add origin "$_TMP"
 git -C "$_TMP" fetch --quiet origin
 git -C "$_TMP" branch -u origin/main main --quiet
 
-# --- Create a temp bin/ dir with stub gh and factory.sh ---
+# --- Create a temp bin/ dir with stub gh and facto-helper.sh ---
 _STUB_BIN="$(mktemp -d)"
 trap 'rm -rf "$_STUB_BIN" "$_TMP"' EXIT
 
@@ -56,9 +56,9 @@ exit 0
 STUB
 chmod +x "$_STUB_BIN/gh"
 
-cat > "$_STUB_BIN/factory.sh" <<'STUB'
+cat > "$_STUB_BIN/facto-helper.sh" <<'STUB'
 #!/bin/bash
-# Stub factory.sh for task-start.sh tests
+# Stub facto-helper.sh for task-start.sh tests
 subcmd="$1"
 if [[ "$subcmd" == "tracker.exists" ]]; then
   exit 0
@@ -77,7 +77,7 @@ if [[ "$subcmd" == "tracker.field" ]]; then
 fi
 exit 1
 STUB
-chmod +x "$_STUB_BIN/factory.sh"
+chmod +x "$_STUB_BIN/facto-helper.sh"
 
 # Prepend the stub bin to PATH for child processes
 export PATH="$_STUB_BIN:$PATH"

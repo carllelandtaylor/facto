@@ -6,7 +6,7 @@ Quick reference for Claude Code working in this repo. Avoid duplicating info alr
 
 This repo is the Facto software factory — two Claude Code skills-directory plugins under `plugins/`:
 
-- **`plugins/facto/`** — public plugin. Pipeline skills (`/facto:<name>`) in `skills/`; user-facing worktree scripts (`factory.sh`, `task-start.sh`, …) in `bin/`.
+- **`plugins/facto/`** — public plugin. Pipeline skills (`/facto:<name>`) in `skills/`; user-facing worktree scripts (`facto-helper.sh`, `task-start.sh`, …) in `bin/`.
 - **`plugins/facto-dev/`** — developer-only plugin. The factory-improvement skills (`/facto-dev:<name>`) in `skills/`; developer scripts in `bin/`.
 
 Also `claude/settings.json` — the maintainer's personal Claude Code permissions and hooks, not part of the factory.
@@ -15,13 +15,13 @@ For factory **usage** (setup, workflows, the full skill catalog) see [README.md]
 
 ## Per-task planning docs
 
-All planning docs for one task (product requirements, design, architecture, implementation plan) live together in a single per-task directory: `tasks/<task-slug>/`, with fixed filenames (`product-requirements.md`, `design-decisions.html`, `design-mock.html`, `design-inventory.md`, `architecture.md`, `implementation-plan.md`). (This repo overrides the factory default `facto-tasks/` to `tasks/` via `"tasks_dir"` in `.facto/settings.json` — it dogfoods the override.) Resolve the directory with `factory.sh task-dir` — never hand-build the slug. The producing skill commits its doc when the developer accepts it. Shared, product-wide inputs such as the files under `docs/design/` (the design system and the evergreen design docs) stay outside the task directory.
+All planning docs for one task (product requirements, design, architecture, implementation plan) live together in a single per-task directory: `tasks/<task-slug>/`, with fixed filenames (`product-requirements.md`, `design-decisions.html`, `design-mock.html`, `design-inventory.md`, `architecture.md`, `implementation-plan.md`). (This repo overrides the factory default `facto-tasks/` to `tasks/` via `"tasks_dir"` in `.facto/settings.json` — it dogfoods the override.) Resolve the directory with `facto-helper.sh task-dir` — never hand-build the slug. The producing skill commits its doc when the developer accepts it. Shared, product-wide inputs such as the files under `docs/design/` (the design system and the evergreen design docs) stay outside the task directory.
 
-`<task-slug>` format: issue-backed tasks are `<issue-number>-<kebab-description>` (e.g. `111-c-observe`). Tasks with no issue are prefixed `UNKNOWN-` where the number would go (e.g. `UNKNOWN-c-design-mock`), so a missing issue is explicit rather than looking like a dropped number. This is consistent everywhere: `task-start.sh` names no-issue worktrees and branches the same way (`feat/UNKNOWN-…`), and `factory.sh task-slug` normalizes any bare slug to the `UNKNOWN-` form.
+`<task-slug>` format: issue-backed tasks are `<issue-number>-<kebab-description>` (e.g. `111-c-observe`). Tasks with no issue are prefixed `UNKNOWN-` where the number would go (e.g. `UNKNOWN-c-design-mock`), so a missing issue is explicit rather than looking like a dropped number. This is consistent everywhere: `task-start.sh` names no-issue worktrees and branches the same way (`feat/UNKNOWN-…`), and `facto-helper.sh task-slug` normalizes any bare slug to the `UNKNOWN-` form.
 
 ## Issue tracking
 
-Work in this repo is tracked as **GitHub Issues** on `carllelandtaylor/personal-dotfiles`, with lifecycle state held on the **[Factory Improvements GitHub Project](https://github.com/users/carllelandtaylor/projects/1)** (project #1). Every improvement Issue is also a project item; supporting observations are comments on the relevant Issue. Tracker config — repo, project owner/number/name, and the Status field/value names — lives in `.facto/settings.json`, the single source of truth read by `factory.sh` and the skills. The hardcoded values named here just reflect that file.
+Work in this repo is tracked as **GitHub Issues** on `carllelandtaylor/personal-dotfiles`, with lifecycle state held on the **[Factory Improvements GitHub Project](https://github.com/users/carllelandtaylor/projects/1)** (project #1). Every improvement Issue is also a project item; supporting observations are comments on the relevant Issue. Tracker config — repo, project owner/number/name, and the Status field/value names — lives in `.facto/settings.json`, the single source of truth read by `facto-helper.sh` and the skills. The hardcoded values named here just reflect that file.
 
 Name feature branches `<type>/<issue#>-<slug>` so the Issue auto-links (`feat/42-csv-export`, `fix/57-login-redirect`, `chore/63-bump-deps`).
 

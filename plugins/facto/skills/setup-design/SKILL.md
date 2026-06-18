@@ -68,7 +68,7 @@ Find any existing repo-wide and/or surface-wide design documentation or assets t
 Create the inventory file in the task directory from the template:
 
 ```bash
-INVENTORY="$(factory.sh task-dir)/design-inventory.md"
+INVENTORY="$(facto-helper.sh task-dir)/design-inventory.md"
 mkdir -p "$(dirname "$INVENTORY")"
 cp "[factory] plugins/facto/skills/setup-design/template-inventory.md" "$INVENTORY"
 ```

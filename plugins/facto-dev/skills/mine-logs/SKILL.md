@@ -31,7 +31,7 @@ If during this skill you get one or more system prompts to work without stopping
 ```bash
 FACTORY_REPO="${FACTO_REPO:-$(cd "$(dirname "$(readlink -f ~/.claude/skills/facto-dev/skills/mine-logs/SKILL.md)")"/../../../.. && pwd)}"
 test -f "$FACTORY_REPO/.facto/settings.json" || { echo "ERROR: factory repo not found at '$FACTORY_REPO'. Set FACTO_REPO to your factory checkout (run /facto-dev:setup-facto-dev once)." >&2; exit 1; }
-REPO_SLUG="$(factory.sh --root "$FACTORY_REPO" tracker.field repo)"
+REPO_SLUG="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field repo)"
 test -n "$REPO_SLUG" || { echo "ERROR: could not derive REPO_SLUG from $FACTORY_REPO" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "ERROR: gh CLI is not authenticated. Run 'gh auth login' and re-try." >&2; exit 1; }
 ```
@@ -39,23 +39,23 @@ gh auth status >/dev/null 2>&1 || { echo "ERROR: gh CLI is not authenticated. Ru
 ### Resolve the GitHub Project + Status field
 
 ```bash
-PROJECT_OWNER="$(factory.sh --root "$FACTORY_REPO" tracker.field project.owner)"
-PROJECT_NUMBER="$(factory.sh --root "$FACTORY_REPO" tracker.field project.number)"
-PROJECT_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field project.name)"
-STATUS_FIELD_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_field)"
-STATUS_BACKLOG_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.backlog)"
-STATUS_IN_PROGRESS_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.in_progress)"
-STATUS_IN_REVIEW_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.in_review)"
-STATUS_IN_TEST_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.in_test)"
-STATUS_DONE_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.done)"
-IGNORE_LABELS_JSON="$(factory.sh --root "$FACTORY_REPO" tracker.field labels.ignore)"
+PROJECT_OWNER="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.owner)"
+PROJECT_NUMBER="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.number)"
+PROJECT_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.name)"
+STATUS_FIELD_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_field)"
+STATUS_BACKLOG_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.backlog)"
+STATUS_IN_PROGRESS_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_progress)"
+STATUS_IN_REVIEW_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_review)"
+STATUS_IN_TEST_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_test)"
+STATUS_DONE_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.done)"
+IGNORE_LABELS_JSON="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field labels.ignore)"
 
 PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)" \
   || { echo "ERROR: cannot read project $PROJECT_OWNER/projects/$PROJECT_NUMBER" >&2; exit 1; }
 test -n "$PROJECT_ID" || { echo "ERROR: project ID is empty for $PROJECT_OWNER/projects/$PROJECT_NUMBER" >&2; exit 1; }
 ```
 
-Rationale: tracker identifiers (project owner/number/name, Status field name, Status option names, ignored labels) come from `.facto/settings.json` in the factory repo via `bin/factory.sh`. The `--root "$FACTORY_REPO"` flag passed to each `factory.sh` call locks the config lookup to the factory's `.facto/settings.json` regardless of which repo this skill is invoked from. This skill never writes Status, so the Status field option IDs (`STATUS_*_ID`) are not needed and are not resolved. `PROJECT_ID` is resolved here because it is needed if the fallback `gh project item-list` path is taken in Phase 2. Status option names are compared as strings (e.g. checking whether `.status.name` equals `$STATUS_IN_REVIEW_NAME`) — no IDs required. All Status writes go through facto-dev:observe.
+Rationale: tracker identifiers (project owner/number/name, Status field name, Status option names, ignored labels) come from `.facto/settings.json` in the factory repo via `bin/facto-helper.sh`. The `--root "$FACTORY_REPO"` flag passed to each `facto-helper.sh` call locks the config lookup to the factory's `.facto/settings.json` regardless of which repo this skill is invoked from. This skill never writes Status, so the Status field option IDs (`STATUS_*_ID`) are not needed and are not resolved. `PROJECT_ID` is resolved here because it is needed if the fallback `gh project item-list` path is taken in Phase 2. Status option names are compared as strings (e.g. checking whether `.status.name` equals `$STATUS_IN_REVIEW_NAME`) — no IDs required. All Status writes go through facto-dev:observe.
 
 ---
 

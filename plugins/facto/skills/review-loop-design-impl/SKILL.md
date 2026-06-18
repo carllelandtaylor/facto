@@ -18,7 +18,7 @@ None — this skill resolves what it needs itself.
 
 ## Phase 1: Detect the Design Spec (Path Selection)
 
-Resolve the task directory: `TASK_DIR="$(factory.sh task-dir 2>/dev/null)"`. If that fails, fall back to any design-mock path the caller passed. Then pick the path:
+Resolve the task directory: `TASK_DIR="$(facto-helper.sh task-dir 2>/dev/null)"`. If that fails, fall back to any design-mock path the caller passed. Then pick the path:
 - **A `design-mock.html` was found** — run the mock-comparison path: Phases A1–A6.
 - **No `design-mock.html` and no mock path** — run the no-mock path: **Phase B1: Sanity Check** instead.
 

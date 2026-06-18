@@ -85,21 +85,21 @@ _ts_issue_title=""
 _ts_issue_labels_json=""
 
 if [[ -n "$_ts_issue_input" ]]; then
-  if ! command -v factory.sh >/dev/null 2>&1; then
-    echo "Error: --issue requires factory.sh on PATH."
+  if ! command -v facto-helper.sh >/dev/null 2>&1; then
+    echo "Error: --issue requires facto-helper.sh on PATH."
     unset _ts_issue_input _ts_args
     return 1
   fi
 
-  if ! factory.sh tracker.exists; then
+  if ! facto-helper.sh tracker.exists; then
     echo "Error: --issue requires .facto/settings.json with a tracker section in the host repo."
     unset _ts_issue_input _ts_args
     return 1
   fi
 
-  _ts_repo_slug="$(factory.sh tracker.field repo)"
+  _ts_repo_slug="$(facto-helper.sh tracker.field repo)"
   if [[ -z "$_ts_repo_slug" ]]; then
-    echo "Error: could not resolve tracker repo via factory.sh."
+    echo "Error: could not resolve tracker repo via facto-helper.sh."
     unset _ts_issue_input _ts_args _ts_repo_slug
     return 1
   fi
@@ -204,10 +204,10 @@ if [[ -n "$_ts_issue_number" ]]; then
     || echo "Warning: could not write task.json at $_ts_task_path"
 
   # Status -> In progress (best effort)
-  _ts_project_owner="$(factory.sh tracker.field project.owner)"
-  _ts_project_number="$(factory.sh tracker.field project.number)"
-  _ts_status_field_name="$(factory.sh tracker.field status_field)"
-  _ts_in_progress_name="$(factory.sh tracker.field status_values.in_progress)"
+  _ts_project_owner="$(facto-helper.sh tracker.field project.owner)"
+  _ts_project_number="$(facto-helper.sh tracker.field project.number)"
+  _ts_status_field_name="$(facto-helper.sh tracker.field status_field)"
+  _ts_in_progress_name="$(facto-helper.sh tracker.field status_values.in_progress)"
 
   _ts_project_id="$(gh project view "$_ts_project_number" --owner "$_ts_project_owner" --format json 2>/dev/null | jq -r .id)"
   _ts_status_field_json="$(gh project field-list "$_ts_project_number" --owner "$_ts_project_owner" --format json 2>/dev/null \

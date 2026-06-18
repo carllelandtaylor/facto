@@ -50,20 +50,20 @@ Set the `Before Starting` task to `in_progress`.
 
 3. **Confirm the starting state.** Run `git status` to verify the working tree is clean and you're on the right branch.
 
-4. **Status fallback (optional).** If `factory.sh tracker.exists` succeeds and `factory.sh current-issue` prints an issue number, check the Issue's current Project Status. If it equals the configured `status_values.backlog` name, set Status → `status_values.in_progress` using the same inline `gh project item-edit` mechanics as facto-dev:observe's `set_issue_status` helper. If Status is anything else (or read fails), do nothing. A failed Status write **warns and continues** — the implementation is the deliverable, not the bookkeeping.
+4. **Status fallback (optional).** If `facto-helper.sh tracker.exists` succeeds and `facto-helper.sh current-issue` prints an issue number, check the Issue's current Project Status. If it equals the configured `status_values.backlog` name, set Status → `status_values.in_progress` using the same inline `gh project item-edit` mechanics as facto-dev:observe's `set_issue_status` helper. If Status is anything else (or read fails), do nothing. A failed Status write **warns and continues** — the implementation is the deliverable, not the bookkeeping.
 
    ```bash
-   if factory.sh tracker.exists 2>/dev/null; then
-     ISSUE_NUMBER="$(factory.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
+   if facto-helper.sh tracker.exists 2>/dev/null; then
+     ISSUE_NUMBER="$(facto-helper.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
      if [[ -n "$ISSUE_NUMBER" ]]; then
-       PROJECT_OWNER="$(factory.sh tracker.field project.owner)"
-       PROJECT_NUMBER="$(factory.sh tracker.field project.number)"
-       STATUS_FIELD_NAME="$(factory.sh tracker.field status_field)"
-       BACKLOG_NAME="$(factory.sh tracker.field status_values.backlog)"
-       IN_PROGRESS_NAME="$(factory.sh tracker.field status_values.in_progress)"
-       REPO_SLUG="$(factory.sh tracker.field repo)"
+       PROJECT_OWNER="$(facto-helper.sh tracker.field project.owner)"
+       PROJECT_NUMBER="$(facto-helper.sh tracker.field project.number)"
+       STATUS_FIELD_NAME="$(facto-helper.sh tracker.field status_field)"
+       BACKLOG_NAME="$(facto-helper.sh tracker.field status_values.backlog)"
+       IN_PROGRESS_NAME="$(facto-helper.sh tracker.field status_values.in_progress)"
+       REPO_SLUG="$(facto-helper.sh tracker.field repo)"
        CURRENT_STATUS="$(gh issue view "$ISSUE_NUMBER" --repo "$REPO_SLUG" --json projectItems \
-         | jq -r --arg n "$(factory.sh tracker.field project.name)" \
+         | jq -r --arg n "$(facto-helper.sh tracker.field project.name)" \
            '[.projectItems[]? | select(.title == $n) | .status.name] | first // ""')"
        if [[ "$CURRENT_STATUS" == "$BACKLOG_NAME" ]]; then
          PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)"

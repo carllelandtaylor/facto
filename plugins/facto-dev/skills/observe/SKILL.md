@@ -18,7 +18,7 @@ This skill runs the phases in `plugins/facto/skills/observe/SKILL.md` with the o
    FACTORY_REPO="${FACTO_REPO:-$(cd "$(dirname "$(readlink -f ~/.claude/skills/facto-dev/skills/observe/SKILL.md)")"/../../../.. && pwd)}"
    test -f "$FACTORY_REPO/.facto/settings.json" || { echo "ERROR: factory repo not found at '$FACTORY_REPO'. Set FACTO_REPO to your factory checkout (run /facto-dev:setup-facto-dev once)." >&2; exit 1; }
    ```
-   Read every tracker field via `factory.sh --root "$FACTORY_REPO" tracker.field <path>`, regardless of host repo.
+   Read every tracker field via `facto-helper.sh --root "$FACTORY_REPO" tracker.field <path>`, regardless of host repo.
 
 2. **REPO_SLUG.** Use the factory's repo slug (from the factory's `.facto/settings.json` resolved via the `--root` lookup above), not the host repo's. Every `gh -R "$REPO_SLUG"` call targets the factory's Issue tracker.
 

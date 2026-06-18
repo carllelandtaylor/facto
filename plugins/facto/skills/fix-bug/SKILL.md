@@ -54,20 +54,20 @@ Set the `Phase 1` task to `in_progress`.
 
 - Read the bug: `gh issue view <n>` (with `--comments`) when given an issue number, else use the description. Capture expected vs. actual behavior and the affected area.
 - Find and trace the relevant code so you understand where the behavior lives.
-- **Optional Status write (best-effort, warn-and-continue).** If the repo has an active Issue tracker, set the Issue's Project Status → in-progress, reusing `facto:implement`'s `factory.sh` + `gh project item-edit` mechanics:
+- **Optional Status write (best-effort, warn-and-continue).** If the repo has an active Issue tracker, set the Issue's Project Status → in-progress, reusing `facto:implement`'s `facto-helper.sh` + `gh project item-edit` mechanics:
 
   ```bash
-  if factory.sh tracker.exists 2>/dev/null; then
-    ISSUE_NUMBER="$(factory.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
+  if facto-helper.sh tracker.exists 2>/dev/null; then
+    ISSUE_NUMBER="$(facto-helper.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
     if [[ -n "$ISSUE_NUMBER" ]]; then
-      PROJECT_OWNER="$(factory.sh tracker.field project.owner)"
-      PROJECT_NUMBER="$(factory.sh tracker.field project.number)"
-      STATUS_FIELD_NAME="$(factory.sh tracker.field status_field)"
-      BACKLOG_NAME="$(factory.sh tracker.field status_values.backlog)"
-      IN_PROGRESS_NAME="$(factory.sh tracker.field status_values.in_progress)"
-      REPO_SLUG="$(factory.sh tracker.field repo)"
+      PROJECT_OWNER="$(facto-helper.sh tracker.field project.owner)"
+      PROJECT_NUMBER="$(facto-helper.sh tracker.field project.number)"
+      STATUS_FIELD_NAME="$(facto-helper.sh tracker.field status_field)"
+      BACKLOG_NAME="$(facto-helper.sh tracker.field status_values.backlog)"
+      IN_PROGRESS_NAME="$(facto-helper.sh tracker.field status_values.in_progress)"
+      REPO_SLUG="$(facto-helper.sh tracker.field repo)"
       CURRENT_STATUS="$(gh issue view "$ISSUE_NUMBER" --repo "$REPO_SLUG" --json projectItems \
-        | jq -r --arg n "$(factory.sh tracker.field project.name)" \
+        | jq -r --arg n "$(facto-helper.sh tracker.field project.name)" \
           '[.projectItems[]? | select(.title == $n) | .status.name] | first // ""')"
       if [[ "$CURRENT_STATUS" == "$BACKLOG_NAME" ]]; then
         PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)"

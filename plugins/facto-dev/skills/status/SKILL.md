@@ -20,7 +20,7 @@ For the full memory model, see `DEVELOPMENT.md` §3.4 in the factory repo.
 ```bash
 FACTORY_REPO="${FACTO_REPO:-$(cd "$(dirname "$(readlink -f ~/.claude/skills/facto-dev/skills/status/SKILL.md)")"/../../../.. && pwd)}"
 test -f "$FACTORY_REPO/.facto/settings.json" || { echo "ERROR: factory repo not found at '$FACTORY_REPO'. Set FACTO_REPO to your factory checkout (run /facto-dev:setup-facto-dev once)." >&2; exit 1; }
-REPO_SLUG="$(factory.sh --root "$FACTORY_REPO" tracker.field repo)"
+REPO_SLUG="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field repo)"
 test -n "$REPO_SLUG" || { echo "ERROR: could not derive REPO_SLUG from $FACTORY_REPO" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "ERROR: gh CLI is not authenticated. Run 'gh auth login' and re-try." >&2; exit 1; }
 ```
@@ -32,23 +32,23 @@ gh auth status >/dev/null 2>&1 || { echo "ERROR: gh CLI is not authenticated. Ru
 facto-dev:status reads Status; never writes. The `set_issue_status` helper from facto-dev:observe/facto-dev:think is not needed here.
 
 ```bash
-PROJECT_OWNER="$(factory.sh --root "$FACTORY_REPO" tracker.field project.owner)"
-PROJECT_NUMBER="$(factory.sh --root "$FACTORY_REPO" tracker.field project.number)"
-PROJECT_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field project.name)"
-STATUS_FIELD_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_field)"
-STATUS_BACKLOG_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.backlog)"
-STATUS_IN_PROGRESS_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.in_progress)"
-STATUS_IN_REVIEW_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.in_review)"
-STATUS_IN_TEST_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.in_test)"
-STATUS_DONE_NAME="$(factory.sh --root "$FACTORY_REPO" tracker.field status_values.done)"
-IGNORE_LABELS_JSON="$(factory.sh --root "$FACTORY_REPO" tracker.field labels.ignore)"
+PROJECT_OWNER="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.owner)"
+PROJECT_NUMBER="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.number)"
+PROJECT_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field project.name)"
+STATUS_FIELD_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_field)"
+STATUS_BACKLOG_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.backlog)"
+STATUS_IN_PROGRESS_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_progress)"
+STATUS_IN_REVIEW_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_review)"
+STATUS_IN_TEST_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.in_test)"
+STATUS_DONE_NAME="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field status_values.done)"
+IGNORE_LABELS_JSON="$(facto-helper.sh --root "$FACTORY_REPO" tracker.field labels.ignore)"
 
 PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)" \
   || { echo "ERROR: cannot read project $PROJECT_OWNER/projects/$PROJECT_NUMBER" >&2; exit 1; }
 test -n "$PROJECT_ID" || { echo "ERROR: project ID is empty for $PROJECT_OWNER/projects/$PROJECT_NUMBER" >&2; exit 1; }
 ```
 
-Rationale: facto-dev:status never writes Status, so the Status field option IDs (`STATUS_*_ID`) are not needed and are not resolved. `PROJECT_ID` is resolved here because it is needed if the fallback `gh project item-list` path is taken in Phase 1. Status option names are read directly from `.status.name` in the `projectItems` JSON without needing the option IDs. All tracker configuration (project number, owner, status field name, status option names, and ignore labels) is sourced from `.facto/settings.json` in the factory repo — the single source of truth for factory tracker settings. The `--root "$FACTORY_REPO"` flag passed to each `factory.sh` call locks the config lookup to the factory's `.facto/settings.json` regardless of which repo this skill is invoked from.
+Rationale: facto-dev:status never writes Status, so the Status field option IDs (`STATUS_*_ID`) are not needed and are not resolved. `PROJECT_ID` is resolved here because it is needed if the fallback `gh project item-list` path is taken in Phase 1. Status option names are read directly from `.status.name` in the `projectItems` JSON without needing the option IDs. All tracker configuration (project number, owner, status field name, status option names, and ignore labels) is sourced from `.facto/settings.json` in the factory repo — the single source of truth for factory tracker settings. The `--root "$FACTORY_REPO"` flag passed to each `facto-helper.sh` call locks the config lookup to the factory's `.facto/settings.json` regardless of which repo this skill is invoked from.
 
 ---
 
@@ -165,4 +165,4 @@ Rules:
 - **OKR Status is read-only and verbatim.** This skill never computes or updates status dots — the developer does that manually on `OKRS.md`. facto-dev:status just opens the file and prints what it finds.
 - **Ignore-label filtering.** Labels listed in `$IGNORE_LABELS_JSON` (sourced from `.facto/settings.json`) are invisible — filter Issues whose labels intersect this list out of every section so test data never pollutes the production status view. Example jq filter: `select([.labels[].name] | any(. as $l | $ignore | index($l)) | not)` with `--argjson ignore "$IGNORE_LABELS_JSON"`.
 - **Project Status drives Open-Issues grouping.** Labels no longer encode lifecycle state. Status is read from each Issue's `projectItems` (the configured project's membership) and used as the primary group axis.
-- **Dynamic project-ID resolution.** Same as facto-dev:observe/facto-dev:think — project number, owner, status field name, and status option names all come from `.facto/settings.json` via `factory.sh`. Project node ID and field IDs are resolved at run time via `gh project view` and `gh project field-list`.
+- **Dynamic project-ID resolution.** Same as facto-dev:observe/facto-dev:think — project number, owner, status field name, and status option names all come from `.facto/settings.json` via `facto-helper.sh`. Project node ID and field IDs are resolved at run time via `gh project view` and `gh project field-list`.

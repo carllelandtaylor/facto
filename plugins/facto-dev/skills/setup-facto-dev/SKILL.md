@@ -64,7 +64,7 @@ The profile only takes effect in new shells, so export it into the current sessi
 
 ```bash
 export FACTO_REPO="$FACTORY_REPO"
-factory.sh --root "$FACTO_REPO" tracker.field repo  # should print the factory's tracker repo slug
+facto-helper.sh --root "$FACTO_REPO" tracker.field repo  # should print the factory's tracker repo slug
 ```
 
 Report to the developer:

@@ -41,10 +41,10 @@ Set the Phase 1 task to `in_progress`.
 All planning docs for one task live together in a single per-task directory: `facto-tasks/<task-slug>/`. Resolve it with the shared helper so every skill agrees on the same location:
 
 ```bash
-TASK_DIR="$(factory.sh task-dir)" || true
+TASK_DIR="$(facto-helper.sh task-dir)" || true
 ```
 
-If `factory.sh task-dir` fails (e.g. you're not in a task worktree / on a feature branch), ask the developer for a short kebab-case slug and resolve it with `TASK_DIR="$(factory.sh task-dir "<slug>")"`. Then `mkdir -p "$TASK_DIR"`.
+If `facto-helper.sh task-dir` fails (e.g. you're not in a task worktree / on a feature branch), ask the developer for a short kebab-case slug and resolve it with `TASK_DIR="$(facto-helper.sh task-dir "<slug>")"`. Then `mkdir -p "$TASK_DIR"`.
 
 Create a new HTML document at `$TASK_DIR/design-decisions.html`. This will hold notes you make about options you consider and decisions you make in the following phases, as well as the final design spec you produce.
 

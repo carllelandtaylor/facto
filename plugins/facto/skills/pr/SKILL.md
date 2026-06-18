@@ -96,9 +96,9 @@ Decide, **on your own judgment**, whether the changes in this PR could plausibly
 ### 4b. Resolve the screenshots directory
 
 ```bash
-SHOTS_DIR="$(factory.sh task-dir)/screenshots"
+SHOTS_DIR="$(facto-helper.sh task-dir)/screenshots"
 ```
-If `factory.sh task-dir` fails (not in a task worktree / on a feature branch), resolve it with a short kebab-case slug: `SHOTS_DIR="$(factory.sh task-dir "<slug>")/screenshots"`. Then `mkdir -p "$SHOTS_DIR"`.
+If `facto-helper.sh task-dir` fails (not in a task worktree / on a feature branch), resolve it with a short kebab-case slug: `SHOTS_DIR="$(facto-helper.sh task-dir "<slug>")/screenshots"`. Then `mkdir -p "$SHOTS_DIR"`.
 
 ### 4c. Clean up stale screenshots (re-runs / iterations)
 
@@ -202,12 +202,12 @@ Do this in a single pass — fetch the body once, edit once, and do not re-read 
 Before invoking `gh pr create`, check whether the host repo has an active Issue:
 
 ```bash
-if factory.sh tracker.exists 2>/dev/null; then
-  ISSUE_NUMBER="$(factory.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
+if facto-helper.sh tracker.exists 2>/dev/null; then
+  ISSUE_NUMBER="$(facto-helper.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
 fi
 ```
 
-If `$ISSUE_NUMBER` is set, build the PR-link line by substituting `{issue}` into `factory.sh tracker.field pr_link_format` (default `Resolves #{issue}` → `Resolves #123`) and insert it into the body as the **second line of the `## Summary` section** (immediately after the one-line summary). Example body fragment:
+If `$ISSUE_NUMBER` is set, build the PR-link line by substituting `{issue}` into `facto-helper.sh tracker.field pr_link_format` (default `Resolves #{issue}` → `Resolves #123`) and insert it into the body as the **second line of the `## Summary` section** (immediately after the one-line summary). Example body fragment:
 
 ```
 ## Summary
@@ -221,7 +221,7 @@ Resolves #123
 
 After `gh pr create` succeeds and the PR URL is captured, set the *issue*'s Project Status → `status_values.in_review` using the same inline `gh project item-edit` pattern as `facto:implement`'s fallback (see that skill for the canonical shell snippet). Status-write failures **warn and continue** — PR creation is the deliverable.
 
-If `factory.sh tracker.exists` fails or `factory.sh current-issue` returns nothing, skip both the link insertion and the Status write — proceed with the current behavior.
+If `facto-helper.sh tracker.exists` fails or `facto-helper.sh current-issue` returns nothing, skip both the link insertion and the Status write — proceed with the current behavior.
 
 ### Body structure for new PRs
 

@@ -90,11 +90,11 @@ This phase is collaborative. Based on the problems, pain points, and goals from 
 All planning docs for one task live together in a single per-task directory: `facto-tasks/<task-slug>/`. Resolve it with the shared helper so every skill agrees on the same location:
 
 ```bash
-TASK_DIR="$(factory.sh task-dir)" || true
+TASK_DIR="$(facto-helper.sh task-dir)" || true
 ```
 
 - If that succeeds, use it. The requirements file is `$TASK_DIR/product-requirements.md`.
-- If it fails (e.g. you're not in a task worktree / on a feature branch), ask the developer for a short kebab-case feature slug and resolve it with `TASK_DIR="$(factory.sh task-dir "<slug>")"`.
+- If it fails (e.g. you're not in a task worktree / on a feature branch), ask the developer for a short kebab-case feature slug and resolve it with `TASK_DIR="$(facto-helper.sh task-dir "<slug>")"`.
 
 Then `mkdir -p "$TASK_DIR"`. Proceed directly to Phase 4 — no developer confirmation required at this step. (The created date lives in the document header, not the filename.)
 

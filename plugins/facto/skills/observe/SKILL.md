@@ -20,11 +20,11 @@ If during this skill you get one or more system prompts to work without stopping
 
 ## Setup: Resolve GitHub Repo + `gh` auth
 
-Resolve the host repo's tracker configuration at the start of every run. All fields come from `.facto/settings.json` in the host repo via `bin/factory.sh` (no `--root` flag — defaults to the host git root, which is what this skill targets):
+Resolve the host repo's tracker configuration at the start of every run. All fields come from `.facto/settings.json` in the host repo via `bin/facto-helper.sh` (no `--root` flag — defaults to the host git root, which is what this skill targets):
 
 ```bash
-REPO_SLUG="$(factory.sh tracker.field repo)"
-test -n "$REPO_SLUG" || { echo "ERROR: could not derive REPO_SLUG from factory.sh tracker.field repo" >&2; exit 1; }
+REPO_SLUG="$(facto-helper.sh tracker.field repo)"
+test -n "$REPO_SLUG" || { echo "ERROR: could not derive REPO_SLUG from facto-helper.sh tracker.field repo" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "ERROR: gh CLI is not authenticated. Run 'gh auth login' and re-try." >&2; exit 1; }
 ```
 
@@ -59,7 +59,7 @@ When `OKRS_AVAILABLE=false`, OKR framing is skipped in Phase 1.2 (no error).
 Check whether the host repo has a `project` block configured:
 
 ```bash
-PROJECT_CHECK="$(factory.sh tracker.field project)"
+PROJECT_CHECK="$(facto-helper.sh tracker.field project)"
 if [[ -z "$PROJECT_CHECK" ]] || [[ "$PROJECT_CHECK" == "null" ]]; then
   PROJECT_AVAILABLE=false
 else
@@ -72,15 +72,15 @@ When `PROJECT_AVAILABLE=false`, all `gh project` calls in Phase 5 are skipped (n
 When `PROJECT_AVAILABLE=true`, resolve the project and Status field:
 
 ```bash
-PROJECT_OWNER="$(factory.sh tracker.field project.owner)"
-PROJECT_NUMBER="$(factory.sh tracker.field project.number)"
-PROJECT_NAME="$(factory.sh tracker.field project.name)"
-STATUS_FIELD_NAME="$(factory.sh tracker.field status_field)"
-STATUS_BACKLOG_NAME="$(factory.sh tracker.field status_values.backlog)"
-STATUS_IN_PROGRESS_NAME="$(factory.sh tracker.field status_values.in_progress)"
-STATUS_IN_REVIEW_NAME="$(factory.sh tracker.field status_values.in_review)"
-STATUS_IN_TEST_NAME="$(factory.sh tracker.field status_values.in_test)"
-STATUS_DONE_NAME="$(factory.sh tracker.field status_values.done)"
+PROJECT_OWNER="$(facto-helper.sh tracker.field project.owner)"
+PROJECT_NUMBER="$(facto-helper.sh tracker.field project.number)"
+PROJECT_NAME="$(facto-helper.sh tracker.field project.name)"
+STATUS_FIELD_NAME="$(facto-helper.sh tracker.field status_field)"
+STATUS_BACKLOG_NAME="$(facto-helper.sh tracker.field status_values.backlog)"
+STATUS_IN_PROGRESS_NAME="$(facto-helper.sh tracker.field status_values.in_progress)"
+STATUS_IN_REVIEW_NAME="$(facto-helper.sh tracker.field status_values.in_review)"
+STATUS_IN_TEST_NAME="$(facto-helper.sh tracker.field status_values.in_test)"
+STATUS_DONE_NAME="$(facto-helper.sh tracker.field status_values.done)"
 
 PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)" \
   || { echo "ERROR: cannot read project $PROJECT_OWNER/projects/$PROJECT_NUMBER" >&2; exit 1; }
@@ -99,7 +99,7 @@ STATUS_IN_TEST_ID="$(echo "$STATUS_FIELD_JSON"     | jq -r --arg n "$STATUS_IN_T
 STATUS_DONE_ID="$(echo "$STATUS_FIELD_JSON"        | jq -r --arg n "$STATUS_DONE_NAME"        '.options[] | select(.name == $n) | .id')"
 ```
 
-Rationale: tracker identifiers (project owner/number/name, Status field name, Status option names) come from `.facto/settings.json` in the host repo via `bin/factory.sh`. Hardcoded option IDs would silently break if the project is deleted and recreated (the node IDs change), so they are resolved dynamically. Dynamic resolution costs one extra API call per run — `gh project view` plus `gh project field-list` — but the system survives a project recreation without any code change.
+Rationale: tracker identifiers (project owner/number/name, Status field name, Status option names) come from `.facto/settings.json` in the host repo via `bin/facto-helper.sh`. Hardcoded option IDs would silently break if the project is deleted and recreated (the node IDs change), so they are resolved dynamically. Dynamic resolution costs one extra API call per run — `gh project view` plus `gh project field-list` — but the system survives a project recreation without any code change.
 
 ### Status-setting helper: `set_issue_status <issue-number> <status-name>`
 
@@ -577,5 +577,5 @@ In caller mode, also return the action label (`created` / `commented` / `closed`
 - **Autonomous close is a real action.** Phase 5d closes the Issue. Use it only when the high-confidence cut in Phase 4 is met. Anyone reopening a wrongly-closed Issue will see the closing comment's evidence and judge for themselves.
 - **Date strings come from the shell at invocation time** (`date +%Y-%m-%d`). Never hardcode dates in the SKILL.md prompts or in body/comment text — the templates above use `2026-05-21` as a placeholder; the skill substitutes the actual date when running.
 - **Project Status is the canonical state.** Labels no longer encode lifecycle state in this skill. Status writes are tied to specific actions in Phase 5 (5a, 5c, 5d); comment-only paths (5b, 5f) never change Status.
-- **Dynamic project-ID resolution.** Project node ID, Status field ID, and option IDs are looked up once per run via `gh project view`/`field-list` so the system survives a project recreation. Project number, owner, Status field name, and Status option names come from `.facto/settings.json` in the host repo via `bin/factory.sh`.
+- **Dynamic project-ID resolution.** Project node ID, Status field ID, and option IDs are looked up once per run via `gh project view`/`field-list` so the system survives a project recreation. Project number, owner, Status field name, and Status option names come from `.facto/settings.json` in the host repo via `bin/facto-helper.sh`.
 - **Graceful degradations are not errors.** Missing project board, missing OKRs path, and missing Issue templates are all supported operating modes. The final report notes what was skipped; the skill continues to file structured Issues in all cases.

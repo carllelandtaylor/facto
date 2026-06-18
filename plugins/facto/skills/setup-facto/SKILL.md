@@ -123,5 +123,5 @@ Each receives the worktree path as `$1`. Seed them as executable no-op templates
 PATH/alias changes only take effect in new shells. Report to the user:
 
 - The profile file the PATH block went in, and that they should open a new terminal (or `source` it) for `task-start`/`task-list`/`task-end` to work.
-- Whether a tracker was configured, and if so the repo slug + Project written to `.facto/settings.json`. Verify it parses: `factory.sh tracker.field repo` should print the repo slug.
+- Whether a tracker was configured, and if so the repo slug + Project written to `.facto/settings.json`. Verify it parses: `facto-helper.sh tracker.field repo` should print the repo slug.
 - Which worktree hook stubs were created, if any.
