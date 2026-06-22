@@ -26,15 +26,15 @@ Title rule: state the problem, not a proposed fix — the same problem may attra
 ### Observed Result
 <!--
 What actually happens when the steps above are run — the observable behavior a developer running the repro sees. Not the internal mechanism that produced it.
-    ✅ Expected Result is phrased as an implementation approach: "fi-think reads PR links from `closedByPullRequestsReferences`..."
+    ✅ Expected Result is phrased as an implementation approach: "facto-dev:think reads PR links from `closedByPullRequestsReferences`..."
     ❌ The `closedByPullRequestsReferences` field is being ignored by the GraphQL caller
 -->
 
 ### Expected Result
 <!--
 What should happen instead — the observable outcome a developer would see if the bug were fixed, not the implementation mechanism for achieving it.
-    ✅ fi-think can report 'Fix in flight: PR #N (merged YYYY-MM-DD)' in its per-Issue reasoning
-    ❌ fi-think reads PR links from `closedByPullRequestsReferences` (available via GraphQL)
+    ✅ facto-dev:think can report 'Fix in flight: PR #N (merged YYYY-MM-DD)' in its per-Issue reasoning
+    ❌ facto-dev:think reads PR links from `closedByPullRequestsReferences` (available via GraphQL)
 -->
 
 ## Root cause(s)
