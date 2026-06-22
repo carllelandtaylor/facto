@@ -19,7 +19,7 @@ All planning docs for one task (product requirements, design, architecture, impl
 
 ## Issue tracking
 
-Work in this repo is tracked as **GitHub Issues** on `carllelandtaylor/facto`, with lifecycle state held on the **[Facto GitHub Project](https://github.com/users/carllelandtaylor/projects/1)** (project #1). Every improvement Issue is also a project item; supporting observations are comments on the relevant Issue. Tracker config — repo, project owner/number/name, and the Status field/value names — lives in `.facto/settings.json`, the single source of truth read by `facto-helper.sh` and the skills. The hardcoded values named here just reflect that file.
+Work in this repo is tracked as **GitHub Issues** on `carllelandtaylor/facto`, with lifecycle state held on the **[Facto GitHub Project](https://github.com/users/carllelandtaylor/projects/1)** (project #1, visible to repo collaborators only). Every improvement Issue is also a project item; supporting observations are comments on the relevant Issue. Tracker config — repo, project owner/number/name, and the Status field/value names — lives in `.facto/settings.json`, the single source of truth read by `facto-helper.sh` and the skills. The hardcoded values named here just reflect that file.
 
 Name feature branches `<type>/<issue#>-<slug>` so the Issue auto-links (`feat/42-csv-export`, `fix/57-login-redirect`, `chore/63-bump-deps`).
 
