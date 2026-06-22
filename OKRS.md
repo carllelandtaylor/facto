@@ -1,6 +1,6 @@
 # Facto OKRs
 
-This file lists Facto's current Objectives and Key Results. The `fi-*` skills read it on every invocation to know what success looks like for Facto. Improvements link back to OKRs by slug in their `okrs:` frontmatter field. `fi-think` updates the per-OKR status on its periodic pass; `fi-status` reads them.
+This file lists Facto's current Objectives and Key Results. The `facto-dev:*` skills read it on every invocation to know what success looks like for Facto. Improvements link back to OKRs by slug in their `okrs:` frontmatter field. `facto-dev:think` updates the per-OKR status on its periodic pass; `facto-dev:status` reads them.
 
 OKRs are a structured, measurable subset of Facto's durable mission stated in `DEVELOPMENT.md` §1.2. Key Results are concrete, measurable targets — either ship-goal capabilities or per-PR / per-session outcome surveys.
 
@@ -181,9 +181,9 @@ _How Facto operates_
 
 | Target (KR) | Current status |
 |---|---|
-| Developer can manually capture failure and success observations and trigger processing into improvement creation. | 🟢 `fi-observe`, `fi-mine-logs`, and `fi-think` support this today. |
-| Facto automatically captures failure and success observations as it runs, without developer kickoff. | 🔴 Requires developer invocation of `fi-observe` or `fi-mine-logs`. |
-| Facto automatically processes captured observations into improvement ideas (no developer kickoff). | 🔴 `fi-think` requires developer invocation; not scheduled. |
+| Developer can manually capture failure and success observations and trigger processing into improvement creation. | 🟢 `facto-dev:observe`, `facto-dev:mine-logs`, and `facto-dev:think` support this today. |
+| Facto automatically captures failure and success observations as it runs, without developer kickoff. | 🔴 Requires developer invocation of `facto-dev:observe` or `facto-dev:mine-logs`. |
+| Facto automatically processes captured observations into improvement ideas (no developer kickoff). | 🔴 `facto-dev:think` requires developer invocation; not scheduled. |
 | Facto automatically implements improvement ideas (moving them through the testing → accepted lifecycle without developer kickoff). | 🔴 No capability today. |
 
 ---
