@@ -193,7 +193,7 @@ Hands the plan to subagents and runs autonomously: implements each step, validat
 Iterative review/fix/validate cycle on a stack of commits. Reviews the diff, fixes all in-scope feedback, folds fixes into the right commits via `/facto:commit-or-amend`, and repeats until clean (default max 5 cycles).
 
 ##### `/facto:pr`
-Creates or updates a GitHub PR. Handles dirty working trees (runs `/facto:commit-or-amend` first), detects existing PRs and updates them in place rather than duplicating, and writes a thorough PR description with verification steps.
+Creates or updates a GitHub PR in a "clean, stacked commits" style -- in this style, large changes are broken up into several single-change commits, and iterations on a branch and PR are amended into existing commits on the branch if applicable, rather than tacking them on as new commits at the end. **This is a very personal PR style that may not be for everyone.** Also does some helpful things like detecting whether there's an existing PR already to update rather than creating a new one, and writing a thorough PR description with verification steps.
 
 ##### `/facto:iterate`
 After a PR is open, applies follow-up feedback. Makes the code change, then hands off to `/facto:pr` for committing, pushing, and updating the PR. Triggers automatically when you request changes on a branch with an open PR.
