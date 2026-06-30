@@ -39,7 +39,15 @@ Many aspects are working well for me, but there's a lot that can be improved sti
 1. ... and more
 
 ## 3 - What does usage look like?
-A few workflow examples:
+Facto is built around a simple high-level workflow:
+
+1. **Create GitHub issue(s)** — optional, but can help your organization and enable agents automatically grabbing work to do.
+1. **Start a task** — in a terminal, run `task-start` to create a git worktree and branch. This is also optional, but helps isolate the work so multiple tasks can run in parallel.
+1. **Build** — open Claude Code and use the `/facto:*` skills to go from requirements to a merged PR. The skills handle planning, implementation, and validation.
+1. **Review** — review the PR on GitHub and merge when happy.
+1. **End the task** — run `task-end` to clean up the worktree and (if merged) delete the branch.
+
+Some example workflows:
 
 **Creating a new worktree for a GitHub Issue:**
 1. `task-start --issue 123` - create a new worktree with isolated server, database, etc
