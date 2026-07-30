@@ -286,12 +286,20 @@
   /* ── Connector arrow between frames in the flow band ───────── */
   .connector {
     display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
     align-items: center;
     align-self: center;
     color: #aaa;
     font-size: 1.4rem;
     margin-top: 2rem; /* visual center relative to phone frame + label */
     flex-shrink: 0;
+  }
+  /* The rendered trigger action (e.g. "Tap 'Add video'") beneath the arrow */
+  .connector-label {
+    font-size: 0.7rem;
+    color: #888;
+    white-space: nowrap;
   }
 
   /* ── Cover band specifics ───────────────────────────────────── */
@@ -637,10 +645,11 @@
             </div>
           </div>
 
-          <!-- Connector: tap / swipe / CTA navigates to next screen -->
-          <!-- TODO: replace arrow label with the action that triggers navigation -->
-          <div class="connector" title="Navigation action">
-            &#x2192;<!-- TODO: label, e.g. "Tap CTA" -->
+          <!-- Connector: the action that moves the user from the previous step to the next. -->
+          <div class="connector">
+            &#x2192;
+            <!-- TODO: replace with the triggering action, e.g. "Tap 'Add video'" -->
+            <span class="connector-label">Trigger action</span>
           </div>
 
           <!-- TODO: replace screen-body stub with the second screen of the flow -->

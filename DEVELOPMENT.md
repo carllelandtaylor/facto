@@ -194,19 +194,22 @@ fi-task-test.sh
 fi-task-test.sh
 ```
 
-### 4.2 - Running the script tests
+### 4.2 - Running the tests
 
-The shell scripts under `plugins/*/bin/` have a small homemade test suite — three
-self-contained `*.test.sh` files, no test framework:
+The shell scripts under `plugins/*/bin/` and the design-mock template have a small
+homemade test suite — four self-contained `*.test.sh` files under
+`plugins/*/bin/tests/` and `plugins/*/skills/*/tests/`, no test framework:
 
 | Suite | Covers |
 |---|---|
 | `plugins/facto/bin/tests/task-start.test.sh` | `task-start.sh` argument parsing — issue detection, branch-name derivation, the `UNKNOWN-` no-issue convention |
 | `plugins/facto/bin/tests/task-list.test.sh` | `task-list.sh` worktree-listing output (snapshot) |
 | `plugins/facto-dev/bin/tests/fi-task-test.test.sh` | `fi-task-test.sh` install-symlink re-pointing (link / reset / preconditions / Facto guard) |
+| `plugins/facto/skills/ref-design-mock/tests/template-task-spec.test.sh` | design-mock task-spec template structure — per-flow bands, connector labels, project-agnostic tokens |
 
-Each suite is self-contained and safe to run from anywhere: it sets up its own
-disposable git repos, asserts against them, and leaves nothing behind. The
+Each suite is self-contained and safe to run from anywhere: the script suites set
+up their own disposable git repos and assert against them; the template suite only
+reads the template. None of them leave anything behind. The
 `fi-task-test` suite is sandboxed so it never disturbs your real
 `~/.claude/skills/` install while it runs.
 
@@ -218,11 +221,12 @@ exits non-zero if any case fails:
 bash plugins/facto/bin/tests/task-start.test.sh
 
 # all suites — runs every one, flags any that fail
-for t in plugins/*/bin/tests/*.test.sh; do echo "== $t"; bash "$t" || echo "FAILED: $t"; done
+for t in plugins/*/bin/tests/*.test.sh plugins/*/skills/*/tests/*.test.sh; do echo "== $t"; bash "$t" || echo "FAILED: $t"; done
 ```
 
 **Why homemade, not [bats](https://github.com/bats-core/bats-core)?** The suite is
 tiny, and each test just gives the script some inputs and checks the resulting
-branches, symlinks, or output. Plain `bash` keeps it zero-dependency and runnable
+branches, symlinks, or output — or, for the template, greps it for the structural
+markers it must keep. Plain `bash` keeps it zero-dependency and runnable
 in any checkout or CI step without an install. Revisit bats if the suite grows
 enough that per-test isolation and reporting start to hurt.
