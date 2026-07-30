@@ -53,9 +53,14 @@ The board is a vertical stack of **bands** (rows of **frames**); inside each fra
 - the top-of-file comment lists which frame type goes with which platform,
 - the Appendix band shows every frame type (delete that band when you're done).
 
-Two things to hold across the whole file:
+Three things to hold across the whole file:
 - **Scope** — design only the screens the feature touches, never the whole app.
 - **Implementability** — don't use presentation the target platform can't build (e.g. a CSS effect Jetpack Compose can't reproduce); the mock must be buildable as shown.
+- **Completeness** — every flow the caller supplies gets a band that runs from entry to completion. A flow with no band is a gap, not a simplification.
+
+### Flow bands
+
+The calling skill supplies the list of flows, the same way it supplies `<dest-dir>` (see "How to create a working copy") — treat the list as given. Give each flow its own band: every step is a full-screen frame, an overlay step is that same full screen with the overlay drawn over it, and each connector between steps carries the action that triggers the transition. The band's header comment in the template has the full detail on step granularity and duplication.
 
 ---
 
