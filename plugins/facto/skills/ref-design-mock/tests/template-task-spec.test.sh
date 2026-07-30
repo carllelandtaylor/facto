@@ -13,6 +13,14 @@
 # A future edit to the template should either preserve those markers or
 # update this test deliberately — it is not meant to be a loose contract.
 #
+# Cases 5-8 pin to short marker phrases inside the BAND 1 (flow) and BAND 3
+# (components) header comments: "once per flow", the band label's
+# "Flow — " form, the overlay rule's "drawn as the full screen with the
+# overlay over it" / "never as a bare frame", and the components band's
+# flow-overlay scope boundary. These phrases are load-bearing the same way —
+# a future prose edit to those comments must preserve them or update this
+# test deliberately.
+#
 # This suite only reads the template; it creates nothing and leaves
 # nothing behind.
 
@@ -126,6 +134,57 @@ elif [[ "$_root_defaults_ok" -ne 1 ]]; then
   fail ":root/.t-dark neutral default token values have been replaced with product values"
 else
   pass ":root and .t-dark carry placeholder markers ($_root_markers) and neutral default token values"
+fi
+
+# ── Case 5: band-1 header states the per-flow duplication instruction ──────
+if grep -q 'once per flow' "$_TEMPLATE"; then
+  pass "band-1 header states the per-flow duplication instruction"
+else
+  fail "band-1 header missing the per-flow duplication instruction ('once per flow')"
+fi
+
+# ── Case 6: band label uses the "Flow — <name>" form ────────────────────────
+if grep -q 'class="band-label">Flow — <!-- TODO: flow name -->' "$_TEMPLATE"; then
+  pass "band-1 label uses the 'Flow — <flow name>' form"
+else
+  fail "band-1 label does not use the 'Flow — <flow name>' form"
+fi
+
+# The band used to be framed as the happy path, which is what let every other
+# flow drift into the components band. Band 1 now carries one deliberate
+# mention — "there is no primary or happy-path flow" — so this checks that
+# every occurrence is that instruction, rather than banning the phrase
+# outright. Both spellings are matched: the old header comment said
+# "happy-path", the old sublabel said "happy path".
+# Flatten to one line first: the guard phrase is inside a wrapped comment, so a
+# line-by-line check would misfire the moment someone re-wraps it without
+# changing a word.
+_flat="$(tr '\n' ' ' < "$_TEMPLATE" | tr -s ' ')"
+_happy_total="$(grep -oiE 'happy[ -]path' <<<"$_flat" | grep -c .)"
+_happy_allowed="$(grep -oiE 'there is no primary or happy-path flow' <<<"$_flat" | grep -c .)"
+_happy_stray=$((_happy_total - _happy_allowed))
+
+if [[ "$_happy_stray" -eq 0 ]]; then
+  pass "no band is framed as the happy path"
+else
+  fail "the template frames a band as the happy path ($_happy_stray stray mention(s))"
+fi
+
+# ── Case 7: band-1 header states the overlay rule ───────────────────────────
+# "never as a bare frame" is the tail of the sentence "...is drawn as the
+# full screen with the overlay over it, never as a bare frame." — pinning to
+# this shorter tail keeps the marker on a single wrapped comment line.
+if grep -q 'never as a bare frame' "$_TEMPLATE"; then
+  pass "band-1 header states the overlay rule"
+else
+  fail "band-1 header missing the overlay rule"
+fi
+
+# ── Case 8: components band states the flow-overlay scope boundary ─────────
+if grep -q "belongs in that flow's band" "$_TEMPLATE"; then
+  pass "components band header states the flow-overlay scope boundary"
+else
+  fail "components band header missing the flow-overlay scope boundary"
 fi
 
 # ── Tally ────────────────────────────────────────────────────────────────────
