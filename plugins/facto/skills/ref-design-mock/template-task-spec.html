@@ -6,7 +6,7 @@
     2. FILL AREAS: every dashed `.design-slot` box marks exactly the region
        to replace with real design. Replace the slot's CONTENTS — never the
        surrounding device chrome (status bar / gesture bar / window frame).
-    3. The bands (cover, then the five canonical bands: flow, states,
+    3. The bands (cover, then one flow band per flow, then states,
        components, before/after, tokens) are labeled scaffolding — each
        band's header comment says what it's for and when to duplicate or
        remove it. Add or remove frames/slots as the design requires.
@@ -25,6 +25,10 @@
     - fit() runs on load AND after 250 ms — the second call catches layout
       shifts from fonts/images that settle after DOMContentLoaded.
     - Serve over HTTP (not file://) if frames contain cross-origin resources.
+    - tests/template-task-spec.test.sh pins the BAND 1 and BAND 3 header-comment
+      wording, the .connector-label markup, and the :root / .t-dark token
+      defaults. Reword or restructure those and update that suite in the same
+      change.
 
   PROJECT-AGNOSTIC WARNING:
     Never write product token values, brand colors, product font names, or
@@ -286,12 +290,20 @@
   /* ── Connector arrow between frames in the flow band ───────── */
   .connector {
     display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
     align-items: center;
     align-self: center;
     color: #aaa;
     font-size: 1.4rem;
     margin-top: 2rem; /* visual center relative to phone frame + label */
     flex-shrink: 0;
+  }
+  /* The rendered trigger action (e.g. "Tap 'Add video'") beneath the arrow */
+  .connector-label {
+    font-size: 0.7rem;
+    color: #888;
+    white-space: nowrap;
   }
 
   /* ── Cover band specifics ───────────────────────────────────── */
@@ -602,20 +614,27 @@
       </div><!-- /band cover -->
 
       <!-- ══════════════════════════════════════════════════════════
-           BAND 1 — FLOW / OVERVIEW
-           Screens in navigation order with connector arrows between them.
-           Shows the happy-path journey from entry to goal.
+           BAND 1 — FLOW
+           Duplicate this entire band once per flow the caller supplies —
+           there is no primary or happy-path flow; every flow gets its own
+           band. Every step is a full-screen frame showing the whole screen
+           at that moment, not a cropped component. An overlay step
+           (popover, dialog, sheet, menu) is drawn as the full screen with
+           the overlay over it, never as a bare frame. Step granularity: a
+           step exists where the screen visibly changes — consecutive
+           states that look identical collapse into one step, and every
+           flow still runs from entry to completion with no gaps.
            ══════════════════════════════════════════════════════════ -->
       <div class="band">
         <div class="band-header">
-          <span class="band-label">Flow / Overview</span>
-          <span class="band-sublabel">Screens in navigation order — happy path</span>
+          <span class="band-label">Flow — <!-- TODO: flow name --></span>
+          <span class="band-sublabel">Screens in order — <!-- TODO: entry point --> to <!-- TODO: completion --></span>
         </div>
         <div class="band-frames">
 
-          <!-- TODO: replace screen-body stub with the first screen of the flow -->
+          <!-- TODO: replace screen-body stub with the first step of the flow -->
           <div class="frame">
-            <span class="frame-title"><!-- TODO: Screen 1 name --></span>
+            <span class="frame-title"><!-- TODO: Step 1 — screen name --></span>
             <div class="phone android">
               <div class="phone-screen t-light">
                 <div class="status-bar">
@@ -637,15 +656,16 @@
             </div>
           </div>
 
-          <!-- Connector: tap / swipe / CTA navigates to next screen -->
-          <!-- TODO: replace arrow label with the action that triggers navigation -->
-          <div class="connector" title="Navigation action">
-            &#x2192;<!-- TODO: label, e.g. "Tap CTA" -->
+          <!-- Connector: the action that moves the user from the previous step to the next. -->
+          <div class="connector">
+            &#x2192;
+            <!-- TODO: replace with the triggering action, e.g. "Tap 'Add video'" -->
+            <span class="connector-label">Trigger action</span>
           </div>
 
-          <!-- TODO: replace screen-body stub with the second screen of the flow -->
+          <!-- TODO: replace screen-body stub with the second step of the flow -->
           <div class="frame">
-            <span class="frame-title"><!-- TODO: Screen 2 name --></span>
+            <span class="frame-title"><!-- TODO: Step 2 — screen name --></span>
             <div class="phone android">
               <div class="phone-screen t-light">
                 <div class="status-bar">
@@ -667,7 +687,8 @@
             </div>
           </div>
 
-          <!-- TODO: add more frame + connector pairs as needed for additional flow steps -->
+          <!-- TODO: add more frame + connector pairs for additional steps in
+               this flow; duplicate this whole band for each additional flow -->
 
         </div>
       </div><!-- /band 1 flow -->
@@ -792,6 +813,11 @@
            a checkbox + its label). Do NOT mix unrelated components in the
            same frame. Use as many or as few frames as there are natural
            groupings — two is fine, six is fine, four is not a target.
+           Scope: this band is for component variants (default / disabled /
+           selected and so on). A popover, dialog, sheet, or menu that
+           appears as part of a flow belongs in that flow's band, drawn over
+           its screen; it goes here only when the point is to show its
+           variants side by side.
            ══════════════════════════════════════════════════════════ -->
       <div class="band">
         <div class="band-header">
