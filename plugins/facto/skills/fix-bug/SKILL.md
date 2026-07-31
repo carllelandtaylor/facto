@@ -25,10 +25,6 @@ Before starting any work, use `TaskCreate` to create a task for each phase. Use 
 
 All tasks start as `pending`. At the start of each phase, use `TaskUpdate` to set the corresponding task to `in_progress`. When you finish that phase, set it to `completed`.
 
-## Sub-skill Invocation Rule
-
-**Never call the Skill tool directly from within this skill.** Nested Skill tool calls can cause the parent skill's execution to stop prematurely when the sub-skill completes. Instead, when this skill needs to run another skill (e.g., `/facto:repro-bug`, `/facto:plan-implementation`, `/facto:implement`, `/facto:commit-or-amend`, `/facto:review-loop-code`, `/facto:pr`, `/facto:watch-and-fix-ci`), launch a **subagent** using the Agent tool and tell the subagent to invoke the sub-skill via the Skill tool. This way the Skill tool's completion boundary is contained within the subagent, and this skill naturally continues when the subagent returns.
-
 ---
 
 ## Input
@@ -93,7 +89,7 @@ Set the `Phase 1` task to `completed`.
 
 Set the `Phase 2` task to `in_progress`.
 
-- Launch a **subagent** (Agent tool, `model: "opus"`) and tell it to run `/facto:repro-bug` via the Skill tool, passing the issue number or description. Do not call the Skill tool directly from this skill.
+- Launch a **subagent** (Agent tool, `model: "opus"`) and tell it to run `/facto:repro-bug` via the Skill tool, passing the issue number or description.
 - Save the confirmed repro: minimal steps, preconditions, observed-wrong vs. expected, and evidence. You will verify the fix against exactly these steps.
 - **If the bug cannot be reproduced**, STOP and report the "could not reproduce" result with what was tried. Do not attempt a speculative fix for a bug you cannot observe.
 
@@ -124,8 +120,8 @@ Choose the path with this checklist. **Escalate** if *any* of these holds:
 
 Otherwise the fix is small/localized → **direct path**.
 
-- **Direct path:** launch a **subagent** (`model: "sonnet"`) to make the edits (plus a regression test where the project has tests), then a **subagent** (`model: "sonnet"`) to run `/facto:commit-or-amend` via the Skill tool with a clear message.
-- **Escalated path:** launch a **subagent** (`model: "opus"`) to run `/facto:plan-implementation` via the Skill tool — pass it the root cause, the logged repro steps, and the no-regression constraint (**do not remove or alter working functionality**). Then launch a **subagent** (`model: "opus"`) to run `/facto:implement` via the Skill tool (it bundles the review loop and PR creation).
+- **Direct path:** launch a **subagent** (`model: "sonnet"`) to make the edits (plus a regression test where the project has tests), then run `/facto:commit-or-amend` via the Skill tool with a clear message.
+- **Escalated path:** run `/facto:plan-implementation` via the Skill tool in this context. Pass it the root cause, the logged repro steps, and the no-regression constraint (**do not remove or alter working functionality**). Then launch a **subagent** (`model: "opus"`) to run `/facto:implement` via the Skill tool (it bundles the review loop and PR creation).
 
 **Verify against the logged repro steps:** re-run the exact reproduction. The fix is good only when the bug is gone **AND** nothing else regressed. If the bug persists or a regression appears, diagnose further and retry — bounded by the maximum fix attempts. After exhausting attempts, stop and report.
 
@@ -150,7 +146,7 @@ Set the `Phase 5` task to `completed`.
 Set the `Phase 6` task to `in_progress`.
 
 - **If `/facto:implement` already opened the PR** (escalated path), ensure it is current.
-- **Otherwise** (direct path), launch a **subagent** (`model: "sonnet"`) to run `/facto:pr` via the Skill tool. Pass it the repro steps and the verification so they land in the PR body. Issue linking and the Verification section are handled by `/facto:pr` (it links the active Issue).
+- **Otherwise** (direct path), run `/facto:pr` via the Skill tool. Pass it the repro steps and the verification so they land in the PR body. Issue linking and the Verification section are handled by `/facto:pr` (it links the active Issue).
 
 Set the `Phase 6` task to `completed`.
 
