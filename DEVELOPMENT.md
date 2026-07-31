@@ -67,7 +67,7 @@ These principles guide how Facto operates and how it's designed. These principle
 
    *Why:* skills are lightweight, composable, and user-invocable; custom subagents add a parallel hierarchy that gatekeeps context and triggers inconsistently.
 
-   *Example:* `facto:implement` is a skill that spawns Sonnet subagents per step rather than relying on a custom `implement-worker` agent definition.
+   *Example:* `facto:implement` is a skill that spawns transient Sonnet subagents when a step warrants one, rather than relying on a custom `implement-worker` agent definition.
 
 5. **Pipeline composition over monolithic skills** — each skill does one phase well. Add a skill rather than growing an existing one when responsibilities cross. The macro shape is plan → implement → review → ship.
 
