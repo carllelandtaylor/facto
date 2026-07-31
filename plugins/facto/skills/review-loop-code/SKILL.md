@@ -62,7 +62,7 @@ If the review returned no feedback items, the loop is done. Proceed to the "Done
 
 Address **all in-scope** feedback items — including minor ones. Only fix items from the **in-scope** list. Do NOT fix **out-of-scope** items; they will be reported to the developer in the final summary.
 
-For efficiency, launch subagents in parallel when fixes are independent (different files, no interactions). When fixes interact, sequence them. Use `model: "sonnet"` for all fix subagents.
+When several fixes are independent (different files, no interactions), launch `model: "sonnet"` subagents in parallel. When fixes interact, sequence them. For a single small fix, just make it here.
 
 Each subagent should:
 - Make the fix
@@ -71,7 +71,7 @@ Each subagent should:
 
 ### Phase 4: Commit Fixes into the Right Place
 
-After all fixes are applied, launch a `model: "sonnet"` **subagent** (Agent tool) and tell it to run `/facto:commit-or-amend` via the Skill tool, passing the base ref to fold changes into the appropriate existing commits (or create new commits for net-new work).
+After all fixes are applied, run `/facto:commit-or-amend` via the Skill tool, passing the base ref to fold changes into the appropriate existing commits (or create new commits for net-new work).
 
 ### Phase 5: Re-validate
 
@@ -96,7 +96,6 @@ Go back to Phase 1.
 - **Don't expand scope.** Only fix issues within the scope of the changes being reviewed. If you notice pre-existing problems, note them but don't fix them.
 - **Don't fight the project.** If the codebase has a pattern you disagree with, follow it anyway. The review is about the new changes, not refactoring the project.
 - **Preserve commit structure.** The point of amending is to keep the commit history matching the logical steps of the plan. Don't squash everything into one commit.
-- **Never call the Skill tool directly from within this skill.** Nested Skill tool calls can cause the parent skill's execution to stop prematurely when the sub-skill completes. Instead, when this skill needs to run another skill (e.g., `/facto:commit-or-amend`, `/facto:pr`), launch a **subagent** using the Agent tool and tell the subagent to invoke the sub-skill via the Skill tool. This way the Skill tool's completion boundary is contained within the subagent, and this skill naturally continues when the subagent returns.
 
 ---
 
@@ -104,7 +103,7 @@ Go back to Phase 1.
 
 When the loop completes (no remaining feedback):
 
-1. If any fixes were made during the loop, check if a PR already exists for the current branch (`gh pr view --json number 2>/dev/null`). If one exists, launch a `model: "sonnet"` **subagent** (Agent tool) and tell it to run `/facto:pr` via the Skill tool to update the PR. If no PR exists, skip — don't create a new PR.
+1. If any fixes were made during the loop, check if a PR already exists for the current branch (`gh pr view --json number 2>/dev/null`). If one exists, run `/facto:pr` via the Skill tool to update the PR. If no PR exists, skip — don't create a new PR.
 2. Report:
    - How many cycles were run
    - A brief list of what was addressed in each cycle
