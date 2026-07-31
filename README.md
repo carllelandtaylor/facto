@@ -195,7 +195,7 @@ Start here if you already have requirements (or use one of the front-of-funnel s
 Takes product requirements, designs, or front-of-funnel outputs and produces a detailed implementation plan where each step = one commit, with validation commands and commit messages.
 
 ##### `/facto:implement`
-Hands the plan to subagents and runs autonomously: implements each step, validates after each (tests, lint, build), commits via `/facto:commit-or-amend`, runs `/facto:review-loop-code` at the end, and creates a PR via `/facto:pr`.
+Runs the plan autonomously: implements each step — inline or in a subagent, whichever it judges better for the build — validates after each (tests, lint, build), commits via `/facto:commit-or-amend`, runs `/facto:review-loop-code` at the end, and creates a PR via `/facto:pr`.
 
 ##### `/facto:review-loop-code`
 Iterative review/fix/validate cycle on a stack of commits. Reviews the diff, fixes all in-scope feedback, folds fixes into the right commits via `/facto:commit-or-amend`, and repeats until clean (default max 5 cycles).

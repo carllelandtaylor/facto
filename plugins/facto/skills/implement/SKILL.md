@@ -1,6 +1,6 @@
 ---
 name: implement
-description: "Use this skill to execute a detailed technical plan. Implements each step with a separate subagent, validates after each step, runs a review loop, creates a PR, and summarizes the results. Designed to run autonomously without asking questions. Invoke with /facto:implement. Procedure skill (follow the phases in order)."
+description: "Use this skill to execute a detailed technical plan. Chooses per step whether to implement inline or in a subagent, validates after each step, runs a review loop, creates a PR, and summarizes the results. Designed to run autonomously without asking questions. Invoke with /facto:implement. Procedure skill (follow the phases in order)."
 color: blue
 ---
 
@@ -81,7 +81,9 @@ Set the `Before Starting` task to `in_progress`.
    fi
    ```
 
-5. **Create per-step tasks.** Read the plan and create one task per step (subject: `Step N: <title>`, activeForm: `Implementing step N`).
+5. **Choose the execution mode.** For each step, decide whether to implement it inline in this context or hand it to a subagent, and record the choice. A subagent isolates that step's context and survives a long build; inline avoids the per-step cold start and the overhead of dispatching to another agent and re-checking its work. Repo size and how long the build is expected to run are examples of what might tip the decision, not a checklist. Steps run in order either way, so a subagent will not make the build finish sooner.
+
+6. **Create per-step tasks.** Read the plan and create one task per step (subject: `Step N: <title>`, activeForm: `Implementing step N`).
 
 Set the `Before Starting` task to `completed`.
 
@@ -93,7 +95,6 @@ Set the `Before Starting` task to `completed`.
 - **Don't ask questions.** Work autonomously from start to finish. If you hit a problem, ambiguity, or contradiction, use your best judgment to unblock yourself and take note of it to report later.
 - **Follow project guidelines.** Code style, naming conventions, patterns, test conventions — match what the codebase already does.
 - **Don't change unrelated code.** Stay within the scope of the plan.
-- **Never call the Skill tool directly from within this skill.** Nested Skill tool calls can cause the parent skill's execution to stop prematurely when the sub-skill completes. Instead, when this skill needs to run another skill (e.g., `/facto:commit-or-amend`, `/facto:review-loop-code`, `/facto:pr`), launch a **subagent** using the Agent tool and tell the subagent to invoke the sub-skill via the Skill tool. This way the Skill tool's completion boundary is contained within the subagent, and this skill naturally continues when the subagent returns.
 
 ---
 
@@ -109,9 +110,13 @@ Before implementing step N, re-read step N's changes description and validation 
 
 Set the step's task to `in_progress`.
 
-#### c. Implement in a Subagent
+#### c. Implement
 
-Launch a subagent (Agent tool, `model: "sonnet"`) to implement the step. Give the subagent:
+Re-evaluate this step's mode before implementing it, and switch from the Phase 1 choice if the build has changed — the step reads larger than planned, or the context is long enough that compaction is a risk.
+
+**Inline:** Make the code changes described in the step directly in this context, and nothing outside the step's scope. When they're done, run `/facto:commit-or-amend` via the Skill tool, passing it the step's commit message and context.
+
+**Subagent:** Launch a subagent (Agent tool, `model: "sonnet"`) to implement the step. Give the subagent:
 - The step's full description (goal, changes, implementation details)
 - Relevant project guidelines and conventions
 - Context about what prior steps have already done (if needed)
@@ -124,7 +129,7 @@ The subagent should:
 
 #### d. Validate
 
-After the subagent completes, run the step's validation instructions yourself:
+After the step's changes are committed, run the step's validation instructions yourself — identically in either mode:
 - Execute all specified commands (tests, lint, type check, etc.)
 - Perform any manual checks described
 - Confirm everything passes
@@ -212,7 +217,8 @@ When everything is done, report to the developer:
 2. **Review cycles** — how many review loop iterations were needed, and a brief list of what was addressed
 3. **Verification outcomes** — Enumerate every verification step from the plan's Test Plan section and report explicit outcome for each: ran+passed / ran+failed / skipped / deferred-with-reason. Silent omission is not allowed — every plan verification step must appear in the summary with one of these four labels.
 4. **Design fidelity** — How verification ran (full comparison against a mock / sanity check with no mock / manual checklist if the UI wasn't launchable) and why. Per-screen result, and every infeasible divergence (screen, what couldn't be matched, why, closest approximation shipped) — never drop these silently. Link any manual checklist produced.
-5. **Decisions and problems** — any ambiguities, contradictions, or judgment calls you made, so the developer can review them and make changes if needed
+5. **Execution mode** — which steps ran inline vs in a subagent, and any mid-build switches
+6. **Decisions and problems** — any ambiguities, contradictions, or judgment calls you made, so the developer can review them and make changes if needed
 
 Keep the summary concise. Don't rehash the plan — just highlight what the developer needs to know.
 
