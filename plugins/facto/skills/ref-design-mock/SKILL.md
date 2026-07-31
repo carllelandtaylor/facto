@@ -56,11 +56,15 @@ The board is a vertical stack of **bands** (rows of **frames**); inside each fra
 Three things to hold across the whole file:
 - **Scope** — design only the screens the feature touches, never the whole app.
 - **Implementability** — don't use presentation the target platform can't build (e.g. a CSS effect Jetpack Compose can't reproduce); the mock must be buildable as shown.
-- **Completeness** — every flow the caller supplies gets a band that runs from entry to completion. A flow with no band is a gap, not a simplification.
+- **Completeness** — every flow the caller supplies gets a band that runs from entry to completion, and every environmental edge case whose handling changes the layout gets a frame. A flow with no band, or a layout-changing edge case with no frame of its own, is a gap, not a simplification.
 
 ### Flow bands
 
 The calling skill supplies the list of flows, the same way it supplies `<dest-dir>` (see "How to create a working copy") — treat the list as given. Give each flow its own band: every step is a full-screen frame, an overlay step is that same full screen with the overlay drawn over it, and each connector between steps carries the action that triggers the transition. The band's header comment in the template has the full detail on step granularity and duplication.
+
+### Environmental edge case bands
+
+The calling skill supplies the list of environmental edge cases, the same way it supplies the flow list — treat the list as given. Draw a frame only for an edge case whose handling materially changes the layout; one whose handling is "no visual change" or "unsupported" is recorded by the caller in its own doc and gets no frame here. For a size edge case, set the variable pair that belongs to the frame type — `--frame-width`/`--frame-height` on a `.browser`, `--screen-width`/`--screen-height` on a `.phone-screen` — never redeclare the frame class (see "How to match a real running app" for why). Remove the band entirely if no edge case changes the layout. The band's header comment in the template has the full detail.
 
 ---
 
@@ -86,7 +90,7 @@ When the mock must match an app that **already exists** — e.g. `/facto:setup-d
 - iOS: point size × scale (@2x/@3x); `dsf = scale`.
 - Web: CSS px directly; `dsf = 1` (or the device-pixel-ratio you target).
 
-Size the frame by setting its CSS variable to the measured logical viewport — `--screen-width`/`--screen-height` on a `.phone-screen`, `--frame-width` on a `.browser` (e.g. `<div class="browser" style="--frame-width:1280px">`). `.phone-screen`, `.browser`, and `.browser-page` are template-owned class names: set the variable, never redeclare the class in a separate stylesheet — the template's frame rules are inlined after any linked CSS, so a redeclared width silently loses and the frame can clip the page.
+Size the frame by setting its CSS variable to the measured logical viewport — `--screen-width`/`--screen-height` on a `.phone-screen`, `--frame-width`/`--frame-height` on a `.browser` (e.g. `<div class="browser" style="--frame-width:1280px;--frame-height:800px">`). `.phone-screen`, `.browser`, and `.browser-page` are template-owned class names: set the variable, never redeclare the class in a separate stylesheet — the template's frame rules are inlined after any linked CSS, so a redeclared width or height silently loses and the frame can clip the page.
 
 **Geometry.** Read element bounds from the live accessibility/DOM tree, not from the screenshot:
 - Android `adb shell uiautomator dump` (Compose exposes semantics bounds, in px → ÷ dsf = dp).
