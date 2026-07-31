@@ -13,8 +13,8 @@
 # A future edit to the template should either preserve those markers or
 # update this test deliberately — it is not meant to be a loose contract.
 #
-# Cases 5-8 pin to short marker phrases inside the BAND 1 (flow) and BAND 3
-# (components) header comments: "once per flow", the band label's
+# Cases 5-8 pin to short marker phrases inside the flow band's and the
+# components band's header comments: "once per flow", the band label's
 # "Flow — " form, the overlay rule's "drawn as the full screen with the
 # overlay over it" / "never as a bare frame", and the components band's
 # flow-overlay scope boundary. These phrases are load-bearing the same way —
