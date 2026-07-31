@@ -198,7 +198,7 @@ Takes product requirements, designs, or front-of-funnel outputs and produces a d
 Runs the plan autonomously: implements each step — inline or in a subagent, whichever it judges better for the build — validates after each (tests, lint, build), commits via `/facto:commit-or-amend`, runs `/facto:review-loop-code` at the end, and creates a PR via `/facto:pr`.
 
 ##### `/facto:review-loop-code`
-Iterative review/fix/validate cycle on a stack of commits. Reviews the diff, fixes all in-scope feedback, folds fixes into the right commits via `/facto:commit-or-amend`, and repeats until clean (default max 5 cycles).
+Iterative review/fix/validate cycle on a stack of commits. Reviews the diff, fixes in-scope feedback, and folds fixes into the right commits via `/facto:commit-or-amend`. Keeps looping while findings are critical or important, treats an all-minor cycle as the last one, and keeps the cycle cap (default 5) as a backstop.
 
 ##### `/facto:pr`
 Creates or updates a GitHub PR in a "clean, stacked commits" style -- in this style, large changes are broken up into several single-change commits, and iterations on a branch and PR are amended into existing commits on the branch if applicable, rather than tacking them on as new commits at the end. **This is a very personal PR style that may not be for everyone.** Also does some helpful things like detecting whether there's an existing PR already to update rather than creating a new one, and writing a thorough PR description with verification steps.

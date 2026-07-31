@@ -196,9 +196,10 @@ fi-task-test.sh
 
 ### 4.2 - Running the tests
 
-The shell scripts under `plugins/*/bin/` and the design-mock template have a small
-homemade test suite — four self-contained `*.test.sh` files under
-`plugins/*/bin/tests/` and `plugins/*/skills/*/tests/`, no test framework:
+The shell scripts under `plugins/*/bin/` and two static files under
+`plugins/*/skills/` have a small homemade test suite — five self-contained
+`*.test.sh` files under `plugins/*/bin/tests/` and `plugins/*/skills/*/tests/`,
+no test framework:
 
 | Suite | Covers |
 |---|---|
@@ -206,10 +207,11 @@ homemade test suite — four self-contained `*.test.sh` files under
 | `plugins/facto/bin/tests/task-list.test.sh` | `task-list.sh` worktree-listing output (snapshot) |
 | `plugins/facto-dev/bin/tests/fi-task-test.test.sh` | `fi-task-test.sh` install-symlink re-pointing (link / reset / preconditions / Facto guard) |
 | `plugins/facto/skills/ref-design-mock/tests/template-task-spec.test.sh` | design-mock task-spec template structure — per-flow bands, connector labels, project-agnostic tokens |
+| `plugins/facto/skills/review-loop-code/tests/skill-structure.test.sh` | review-loop-code severity gate — terminal-cycle rule, terminal-mode fix judgment, retained cycle cap |
 
 Each suite is self-contained and safe to run from anywhere: the script suites set
-up their own disposable git repos and assert against them; the template suite only
-reads the template. None of them leave anything behind. The
+up their own disposable git repos and assert against them; the two structural
+suites only read their target files. None of them leave anything behind. The
 `fi-task-test` suite is sandboxed so it never disturbs your real
 `~/.claude/skills/` install while it runs.
 
@@ -226,7 +228,7 @@ for t in plugins/*/bin/tests/*.test.sh plugins/*/skills/*/tests/*.test.sh; do ec
 
 **Why homemade, not [bats](https://github.com/bats-core/bats-core)?** The suite is
 tiny, and each test just gives the script some inputs and checks the resulting
-branches, symlinks, or output — or, for the template, greps it for the structural
-markers it must keep. Plain `bash` keeps it zero-dependency and runnable
-in any checkout or CI step without an install. Revisit bats if the suite grows
-enough that per-test isolation and reporting start to hurt.
+branches, symlinks, or output — or, for the two structural suites, greps a static
+file for the markers it must keep. Plain `bash` keeps it zero-dependency and
+runnable in any checkout or CI step without an install. Revisit bats if the
+suite grows enough that per-test isolation and reporting start to hurt.
