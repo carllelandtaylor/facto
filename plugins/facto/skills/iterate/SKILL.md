@@ -10,10 +10,6 @@ color: green
 
 Apply feedback to an in-progress PR: make the code change, commit it cleanly, push, and update the PR description if the change is meaningful enough to affect it.
 
-## Sub-skill Invocation Rule
-
-**Never call the Skill tool directly from within this skill.** When this skill needs to run another skill (e.g., `/facto:commit-or-amend`), launch a **subagent** using the Agent tool and tell the subagent to invoke the sub-skill via the Skill tool.
-
 ---
 
 ## Phase 1: Confirm PR Context
@@ -51,7 +47,7 @@ Spawn a subagent for each change. Each subagent should:
 
 ## Phase 4: Hand Off to /facto:pr
 
-Launch a **subagent** (Agent tool, `model: "sonnet"`) to run `/facto:pr`. Pass it the context of what changes were made and why, and the base ref. Do not prescribe whether to amend, fixup, or create a new commit — that's `/facto:commit-or-amend`'s job, and prescribing it overrides the decision.
+Run `/facto:pr` via the Skill tool. Pass it the context of what changes were made and why, and the base ref. Do not prescribe whether to amend, fixup, or create a new commit — that's `/facto:commit-or-amend`'s job, and prescribing it overrides the decision.
 
 ---
 
