@@ -22,10 +22,6 @@ Before starting any work, use `TaskCreate` to create a task for each phase. Use 
 
 All tasks start as `pending`. At the start of each phase, use `TaskUpdate` to set the corresponding task to `in_progress`. When you finish that phase, set it to `completed`. Phases 2–4 form a loop; re-open and re-run their tasks on each cycle as needed.
 
-## Sub-skill Invocation Rule
-
-**Never call the Skill tool directly from within this skill.** Nested Skill tool calls can cause the parent skill's execution to stop prematurely when the sub-skill completes. Instead, when this skill needs to run another skill (e.g., `/facto:iterate`, `/facto:pr`), launch a **subagent** using the Agent tool and tell the subagent to invoke the sub-skill via the Skill tool. This way the Skill tool's completion boundary is contained within the subagent, and this skill naturally continues when the subagent returns.
-
 ---
 
 ## Input
@@ -85,7 +81,7 @@ Set the `Phase 3` task to `completed`.
 Set the `Phase 4` task to `in_progress`.
 
 - Make the fix that addresses the root cause, and confirm the previously-failing command now passes locally.
-- Push the update: launch a **subagent** (Agent tool, `model: "sonnet"`) and tell it to run `/facto:iterate` (or `/facto:pr`) via the Skill tool to commit and push the fix and update the PR. Do not call the Skill tool directly from this skill.
+- Push the update: run `/facto:iterate` (or `/facto:pr`) via the Skill tool to commit and push the fix and update the PR.
 - Loop back to **Phase 2** to wait for the re-triggered checks.
 
 Set the `Phase 4` task to `completed`.
