@@ -141,7 +141,7 @@ Before pausing for developer input on a failure, search the plan for documented 
 If validation fails:
 - Read the error output carefully
 - Fix the issue (in a subagent, `model: "sonnet"`, if the fix is non-trivial)
-- Launch a subagent (`model: "sonnet"`) and tell it to run `/facto:commit-or-amend` via the Skill tool to fold the fix into the appropriate commit
+- Run `/facto:commit-or-amend` via the Skill tool to fold the fix into the appropriate commit
 - Re-run validation
 - If you cannot resolve the failure after two attempts, note it and proceed to the next step
 
@@ -168,7 +168,7 @@ Run all final validation steps from the plan:
 
 Before pausing for developer input on a failure, search the plan for documented fallback paths for the failing area. Use `grep -i -E 'fallback|if this fails|alternative|in case of failure' <path-to-plan-file>` (substituting the actual plan file path provided at invocation) and check for Fallback sub-sections co-located with the failing step's Validation. If a specific fallback is documented, attempt it first and report results. Only pause for developer input if no documented fallback exists or the fallback also fails.
 
-If any final validation fails, fix the issues and launch a subagent (`model: "sonnet"`) that runs `/facto:commit-or-amend` via the Skill tool to fold fixes into the appropriate existing commits.
+If any final validation fails, fix the issues and run `/facto:commit-or-amend` via the Skill tool to fold fixes into the appropriate existing commits.
 
 Set the `Test Plan` task to `completed`.
 
@@ -197,7 +197,7 @@ Set the `Review Loop` task to `completed`.
 
 Set the `Create PR` task to `in_progress`.
 
-Unless the plan specified an existing PR to use, launch a **subagent** (Agent tool, `model: "sonnet"`) and tell it to run `/facto:pr` via the Skill tool. Pass it:
+Unless the plan specified an existing PR to use, run `/facto:pr` via the Skill tool. Pass it:
 - The stack of commits
 - The requirements/goals
 - Any product requirements or design docs

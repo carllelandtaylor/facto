@@ -136,6 +136,6 @@ Follow the template's instructions and `/facto:ref-design-system` "The Index" fo
 Set the `Phase 4` task to `completed`. **End of phase:** continue immediately to Phase 5.
 
 ## Phase 5: Create PR
-Launch a **subagent** (Agent tool, `model: "sonnet"`) and tell it to run `/facto:pr` via the Skill tool.
+Run `/facto:pr` via the Skill tool.
 
 Set the `Phase 5` task to `completed`. **End of skill:** Stop here.

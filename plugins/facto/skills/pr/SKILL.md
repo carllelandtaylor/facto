@@ -46,7 +46,7 @@ git diff @{u}..HEAD --quiet 2>/dev/null; echo "remote_uptodate=$?"
 ```
 This returns the branch name, the commits going into the PR, the changed files, the working-tree state, and whether the remote is already up to date. `remote_uptodate=0` means the remote matches HEAD (no diff); any non-zero value — including `128` when the branch has no upstream yet — means there is something to push, so proceed.
 
-If the working tree is not clean (staged or unstaged changes exist), invoke `/facto:commit-or-amend` directly via the Skill tool (in-context) — not in a subagent — with the base ref (`main`) and any relevant context, then continue — do not stop. This preserves its full fixup/attribution behavior. (If a direct Skill call ever stops `facto:pr` mid-procedure, inline `facto:commit-or-amend`'s attribution logic here instead — never sacrifice fixup fidelity.)
+If the working tree is not clean (staged or unstaged changes exist), run `/facto:commit-or-amend` via the Skill tool with the base ref (`main`) and any relevant context, then continue — do not stop. This preserves its full fixup/attribution behavior.
 
 If the remote is up to date (`remote_uptodate=0`) and the working tree was clean, there are no new changes to reflect — report "Nothing new to put in a PR" and stop.
 
@@ -128,7 +128,7 @@ For brand-new screens, capture after-only. If running the base version is imprac
 
 ### 4f. Commit the screenshots
 
-Still inside the capture subagent, commit the screenshots (it may invoke `/facto:commit-or-amend` via the Skill tool — that is safe here, since the call is contained within the subagent). Stage **only** `$SHOTS_DIR` — never `git add -A`. Use a commit message like `chore: add screenshots for <task-slug>`. This commit lands before the next phase pushes the branch.
+Still inside the capture subagent, commit the screenshots, invoking `/facto:commit-or-amend` via the Skill tool. Stage **only** `$SHOTS_DIR` — never `git add -A`. Use a commit message like `chore: add screenshots for <task-slug>`. This commit lands before the next phase pushes the branch.
 
 ### 4g. If capture is not possible
 
