@@ -1,0 +1,126 @@
+digraph FactoPlanDesign {
+    graph [goal="Design a feature's UI/UX: produce a design decisions document and a Figma-like design mock covering every screen, transition, state, interaction, copy choice, design-system reference and divergence"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // Phase 1: resolve the per-task directory. Exits non-zero when the shared
+    // helper cannot resolve it, which routes to the human gate that asks for a slug.
+    resolve_task_dir [
+        label="Resolve Task Directory",
+        shape=parallelogram,
+        max_retries=0,
+        script="set +e; TASK_DIR=$(facto-helper.sh task-dir 2>/dev/null); if [ -z \"$TASK_DIR\" ]; then echo 'NO_TASK_DIR: facto-helper.sh task-dir could not resolve a task directory; a kebab-case slug is required'; exit 1; fi; mkdir -p \"$TASK_DIR\" || exit 1; echo \"task_dir=$TASK_DIR\"; echo '--- existing contents ---'; ls -la \"$TASK_DIR\"; echo '--- upstream planning docs in the task dir ---'; ls -1 \"$TASK_DIR\"/*.md \"$TASK_DIR\"/*.html 2>/dev/null; echo '--- evergreen design index ---'; if [ -f docs/design/index.md ]; then cat docs/design/index.md; else echo 'no docs/design/index.md yet'; fi"
+    ]
+
+    ask_slug [
+        shape=hexagon,
+        question_type="freeform",
+        label="The task directory could not be resolved automatically (you are probably not on a task worktree or feature branch). Give me a short kebab-case slug for this design task, for example dark-mode-toggle."
+    ]
+
+    create_doc [
+        label="Create Design Document",
+        prompt="Create the empty design decisions document for this task. All planning docs for one task live together in a single per-task directory. Resolve it with the shared helper so every skill agrees on the same location: run TASK_DIR=$(facto-helper.sh task-dir). If that already succeeded in the previous step, reuse the task_dir value it printed. If it failed, the developer supplied a slug in the previous step — it is {{ human.gate.ask_slug.answer }} — so resolve the directory with TASK_DIR=$(facto-helper.sh task-dir <slug>) using that slug, then mkdir -p on the result. Create a new HTML document at $TASK_DIR/design-decisions.html. This file will hold, section by section, the notes you make about options you consider and decisions you make in the later phases, as well as the final design spec you produce. For now do nothing more than create the document and give it a title naming the feature. Report the absolute path of $TASK_DIR so every later stage writes to the same place. Feature to design: {{ goal }}"
+    ]
+
+    absorb_inputs [
+        label="Absorb And Summarize Inputs",
+        prompt="Locate and read the inputs for this design, then summarize them into the design document. Read four things. (1) UPSTREAM PLANNING DOCS — typically the product requirements document produced by facto:plan-product, in the task directory; plus any other planning doc the developer points to. (2) THE DESIGN SYSTEM FOR THE RELEVANT SURFACE ONLY — a repo may have several surfaces such as backend, web frontend and mobile frontend; if the feature lives in one surface, read only that surface's design system and do not pull in the others. (3) EVERGREEN DESIGN DOCS FOR THAT SURFACE — the project-wide view specs that persist across tasks. Start from docs/design/index.md to discover what exists, then read the docs/design/<surface>/views/*.html specs relevant to this feature. Read them for inventory and reuse: what already exists, and which patterns to match. If you need to judge how an existing view actually looks, render it over HTTP and screenshot it rather than reading its markup. If these docs do not exist yet for the surface, note that and continue. (4) EXISTING DESIGN IN THE CODEBASE — design specs for prior features, or the live UI code itself, used as a consistency reference. Add a new section to $TASK_DIR/design-decisions.html with a concise summary of the key points you learned. Then hold these rules for the rest of the workflow: the design system is the highest authority, so follow it; reuse existing components and patterns before designing new ones, and introduce a new one only when nothing existing is close enough; default to matching existing feature design for consistency across the product; diverge only when it is genuinely better for what we are building; and flag every divergence and inconsistency to the developer, both from the design system and from existing features, so they can be reviewed explicitly."
+    ]
+
+    hierarchy_flows [
+        label="Draft Hierarchy And Flows",
+        max_visits=3,
+        prompt="Draft the high-level user experience flow and navigation for this feature. Focus ONLY on the high-level experience and the navigation between screens. Do NOT go into the details of how a specific screen works or looks, and do NOT go into technical or engineering details. Tune the complexity of your output to the complexity of the feature itself and add nothing beyond what is instructed here. Where the requirements have omissions or deferred decisions, make your best determination. Add a new section to $TASK_DIR/design-decisions.html containing exactly three things. (1) VIEW INVENTORY — list every view that must be added or changed to implement this feature, where a view is an addressable UI surface: a screen the user navigates to, a region of persistent chrome such as a nav bar or side panel, or an overlay such as a modal, sheet, popover or toast. This inventory maps directly onto the evergreen view specs under docs/design/<surface>/views/ that get created or updated later. (2) FLOW INVENTORY AND FLOW MAP — first list every distinct user flow as a numbered inventory, each entry naming the flow, its entry point and its completion condition; source it from the requirements document's user workflows section plus any flow the requirements imply but do not name, for example an error-recovery path or a first-run path. Then draw the flow map: a flowchart whose nodes are the views involved and whose edges are the possible transitions, each transition annotated with its trigger, which may be a user action, an API response, a timer or anything else. The flow map must cover the same set as the inventory, so every inventory entry is traceable through it. (3) NAVIGATION DECISIONS — list the important, non-obvious decisions you made when choosing that view inventory and flow map, for example choosing between two ways to navigate between views, or between extending an existing view and creating a new one. For each, give the alternatives you considered, their pros and cons, and your reasoning. Include ONLY decisions about navigation and information hierarchy — not view-level design, not technical implementation. If there are none that fit, say so rather than padding the list. If the developer has given feedback on an earlier draft, it is: {{ human.gate.flows_gate.answer }} — when that is non-empty, treat it as a correction and revise the section rather than starting over."
+    ]
+
+    adversarial_review [
+        label="Adversarial Review Of Flows",
+        max_visits=4,
+        prompt="Run an adversarial review of the flow inventory, flow map and view inventory drafted in the previous stage. Create a subagent and give it the same inputs you have, plus the section you just wrote. Instruct it to find any flaw, gap, inefficiency or non-obvious edge case in those three artifacts — including whether the flow inventory is complete against the requirements document's user workflows, covering the flows the requirements imply but do not name. The subagent should be genuinely critical and should try to break the flow or find problems for users. Scope its review to the feature set the requirements ask for: it judges how well the design delivers those features and must NOT propose new features or capabilities beyond them. Then consider each piece of feedback yourself. Address the points that are objectively valid and within the requested feature set, editing the design document in place. Ignore feedback you do not think is correct. If a point is valid but the only way to resolve it would be to add a feature or capability the requirements do not ask for, leave the design as it is and record the point so it can be raised with the developer later — never resolve a finding by adding a capability. End this stage as succeeded when the reviewer has no remaining valid feedback, or when three review rounds have been run. End it as failed while valid feedback is still outstanding, so another round runs."
+    ]
+
+    address_feedback [
+        label="Address Reviewer Feedback",
+        prompt="The reviewer still has outstanding valid feedback. Work through it now. For each finding, decide explicitly whether it is objectively valid and within the feature set the requirements ask for. Edit the relevant section of $TASK_DIR/design-decisions.html to resolve the valid ones, keeping the view inventory, flow inventory and flow map consistent with each other after every edit. Record, for each finding, whether you addressed it and how, or why you rejected it — this record is reported to the developer later. Do not add features or capabilities the requirements do not ask for in order to close a finding; note such findings as open instead. Then hand the revised section back for another review round."
+    ]
+
+    flows_gate [
+        shape=hexagon,
+        label="Here is the view inventory, the flow inventory and the flow map, with the navigation decisions behind them. Approve to move on to the design mock, or type what you want changed."
+    ]
+
+    mock_brief [
+        label="Prepare Design Mock Brief",
+        max_visits=3,
+        prompt="Prepare the brief for the design mock so the mock mechanics that run next have everything they need, and make the design decisions those mechanics deliberately leave to you. State three things explicitly. (1) DESTINATION DIRECTORY — the mock mechanics treat this as an opaque given, so pass $TASK_DIR: the mock file goes to $TASK_DIR/design-mock.html and any fonts or images go to $TASK_DIR/assets/. (2) FLOW LIST — pass the flow inventory from the hierarchy stage verbatim, each flow with its entry point and completion condition, because the mechanics draw one band per flow and treat the list as given. (3) DESIGN CONTENT — for each view in the view inventory decide what the frame actually shows: which existing design-system components and existing product patterns it reuses, the concrete copy, the states it must depict (default or loaded, loading, empty, error, and the edge cases the flows imply), and which surface's design system supplies the tokens. Reuse before inventing, and where you diverge from the design system or from an existing feature, say so here so it can be flagged to the developer. Resolve any open question with your best judgment rather than stopping. If the developer asked for changes after seeing an earlier mock, their request is: {{ human.gate.dev_gate.answer }} — when that is non-empty, fold it into this brief before the mock is rebuilt."
+    ]
+
+    mock [import="../facto-ref-design-mock/workflow.fabro"]
+
+    verify_flow_coverage [
+        label="Verify Flow Coverage",
+        prompt="Confirm the mock actually covers the design before anyone reviews it. Serve $TASK_DIR over HTTP with python3 -m http.server on a free port, navigate to design-mock.html and screenshot it — a file:// URL will not work. Then check every entry in the flow inventory end to end: each flow must run from its entry point to its completion condition, with every step drawn as a full-screen frame and every connector carrying the action that triggers the transition. A flow with no band is a gap, not a simplification. Also check that every view in the view inventory appears, and that every state you listed for it is drawn. If an entry is missing or stops short, fill it in and re-serve and re-inspect before finishing. Stop the server when you are done, and report which flows and views you confirmed and anything still missing."
+    ]
+
+    summarize [
+        label="Summarize Design Decisions",
+        prompt="Summarize the whole design for the developer, in this order. (1) The big decisions you made in the stages above, especially any that diverge from the design system or from existing patterns in the codebase; for each, give the alternatives you considered, their pros and cons, and your reasoning. (2) The important feedback you received from your adversarial reviewer, and whether and how you addressed each point — including any point you left open because resolving it would have required a capability the requirements do not ask for. (3) The flow inventory, naming every flow covered, so the developer can spot a missing workflow without opening the mock. (4) The paths of the two output files you created: $TASK_DIR/design-decisions.html and $TASK_DIR/design-mock.html. Do NOT commit anything in this stage — the commit happens after the evergreen design docs are updated, so the per-task design files and the evergreen updates land in a single changeset."
+    ]
+
+    dev_gate [
+        shape=hexagon,
+        label="Here is the design: the decisions document, the mock, and the divergences from the design system and existing patterns. Approve to update the evergreen design docs and commit, or type what you want changed."
+    ]
+
+    surface_check [
+        label="Check For A Visual Surface",
+        prompt="Decide whether this feature has a visual surface, because the evergreen design docs cover visual surfaces only. Look at the view inventory and at what the feature actually changes. End this stage as succeeded when the feature touches at least one visual surface such as web, ios or android — naming each surface it touches. End it as failed when the feature is backend-only or is purely an API change with no UI, so the evergreen upsert is skipped and the workflow goes straight to the commit. Do not modify any file in this stage."
+    ]
+
+    evergreen_inventory [
+        label="Scope The Evergreen Upsert",
+        prompt="Prepare this task's view inventory for the evergreen upsert routine that runs next. For each surface the feature touches, restate the inventory in the form that routine consumes: for every view, its surface, its slug (the view's role name), its type tag (screen, region or overlay), the states it can be in, and for overlays and regions the invoked-from or appears-in list. Mark each view as added, updated, renamed or removed by this task, because renames and removals require matching edits to docs/design/index.md. Scope this strictly to the views this task changed — never the whole app. Do not write any file under docs/design/ in this stage; the upsert routine makes those changes."
+    ]
+
+    design_system [import="../facto-ref-design-system/workflow.fabro"]
+
+    commit_design [
+        label="Commit Design Files",
+        prompt="Commit the per-task design files together with any evergreen updates, in one changeset. Stage only the specific paths this task touched — never git add -A and never git add dot. Always stage $TASK_DIR/design-decisions.html and $TASK_DIR/design-mock.html, and stage $TASK_DIR/assets only if that directory exists. When the feature has a visual surface, also stage the evergreen paths that were touched, repeating per surface and per view: the view folder docs/design/<surface>/views/<view>/ holding its spec and harnesses; docs/design/<surface>/views/assets if fonts or assets were added; and docs/design/index.md if views were added, removed or renamed. Then commit with the message docs: add design for <task-slug>. Read git status and the staged diff before committing, and leave out generated files, build artifacts and anything containing a credential or token."
+    ]
+
+    report [
+        shape=tab,
+        fidelity="summary:high",
+        label="Report",
+        prompt="Report what this run produced, using only what actually happened in the stages above. Do not invent files or decisions. Give, in this order: the absolute paths of the design decisions document and the design mock; the view inventory and the flow inventory, so a missing workflow is visible without opening the mock; the decisions that diverge from the design system or from existing product patterns, each with its reasoning; the reviewer findings that were left open, and why; which evergreen view specs were added, updated, renamed or deleted, or that the upsert was skipped because the feature has no visual surface; and the commit that was created. Close by recommending that facto:plan-implementation runs next."
+    ]
+
+    start -> resolve_task_dir
+    resolve_task_dir -> create_doc [label="Resolved", condition="outcome=succeeded"]
+    resolve_task_dir -> ask_slug [label="Ask for a slug"]
+    ask_slug -> create_doc [freeform=true]
+
+    create_doc -> absorb_inputs -> hierarchy_flows -> adversarial_review
+    adversarial_review -> flows_gate [label="No valid findings", condition="outcome=succeeded"]
+    adversarial_review -> address_feedback [label="Address findings"]
+    address_feedback -> adversarial_review
+
+    flows_gate -> mock_brief [label="[A] Approve flows"]
+    flows_gate -> hierarchy_flows [freeform=true]
+
+    mock_brief -> mock
+    mock -> verify_flow_coverage -> summarize -> dev_gate
+    dev_gate -> surface_check [label="[A] Approve design"]
+    dev_gate -> mock_brief [freeform=true]
+
+    surface_check -> evergreen_inventory [label="Visual surface", condition="outcome=succeeded"]
+    surface_check -> commit_design [label="Backend only"]
+    evergreen_inventory -> design_system
+    design_system -> commit_design
+    commit_design -> report
+    report -> exit
+}

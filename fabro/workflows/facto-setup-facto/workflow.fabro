@@ -1,0 +1,56 @@
+digraph FactoSetupFacto {
+    graph [goal="Set up the Facto mechanics: put the task-* worktree commands on the shell PATH, then optionally wire this repo to a GitHub Issues and Project tracker and drop worktree hook stubs"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    resolve_checkout [
+        shape=parallelogram,
+        label="Phase 1: Resolve This Facto Checkout",
+        script="FACTO_PLUGIN=\"$(cd \"$(dirname \"$(readlink -f ~/.claude/skills/facto/skills/setup-facto/SKILL.md)\")\"/../.. && pwd)\"; FACTO_BIN=\"$FACTO_PLUGIN/bin\"; test -x \"$FACTO_BIN/task-start.sh\" || { echo \"ERROR: resolved '$FACTO_BIN' but task-start.sh is not there - is the facto plugin symlinked from your Facto checkout?\" >&2; exit 1; }; echo \"Facto bin: $FACTO_BIN\"",
+        max_retries=0
+    ]
+
+    path_setup [
+        label="Phase 2: Put Worktree Commands On PATH",
+        prompt="Put the task-* worktree commands on the user's shell PATH. This phase is machine-global and idempotent: re-running it in a new project should skip the work and just report. Use the FACTO_BIN path resolved by the previous stage. The task-* commands run in the user's own terminal and must be SOURCED, because they cd into the new worktree, so they go in the shell profile as a PATH entry plus source aliases. First pick the profile file for the user's interactive shells: zsh gives $HOME/.zshrc, bash gives $HOME/.bashrc, anything else gives $HOME/.profile, based on basename of $SHELL. Tell the user which file you picked; if they keep their config elsewhere, let them name the file and use that instead. Then write the block idempotently: if the sentinel comment '# facto: worktree commands on PATH' is already present in the profile, report that and show the matching lines, and update the PATH line only if FACTO_BIN differs; otherwise append a block that exports FACTO_BIN onto PATH and defines three aliases — task-start as 'source task-start.sh', task-end as 'source task-end.sh', and task-list as 'source task-list.sh'. When updating an existing block, edit only the affected line or lines. Never rewrite the profile wholesale."
+    ]
+
+    tracker_gate [
+        shape=hexagon,
+        label="Do you want to use GitHub Issues plus a Project board as the task tracker for this repo? If yes, a .facto/settings.json will be written to wire it up.",
+        question_type="yes_no"
+    ]
+
+    tracker_interview [
+        label="Phase 3: Wire This Repo To A Tracker",
+        prompt="Run the tracker sub-interview and write .facto/settings.json. The pipeline skills facto:plan-implementation, facto:implement and facto:pr, and the task-start --issue flag, read tracker config from .facto/settings.json in the repo root; without it those behaviors silently degrade to no-ops. Ask ONE QUESTION AT A TIME: (1) GITHUB REPO SLUG — default it from gh repo view --json nameWithOwner -q .nameWithOwner in the current repo, and ask explicitly if the remote is not set yet, in owner/repo form. (2) GITHUB PROJECT — ask for the owner, defaulting to the same GitHub user or org as the repo; the display name, which is the project's title such as 'Notepad Pro Roadmap'; and whether the project already exists. If it exists, ask for its number. If it does not, offer to create it now with gh project create --title <name> --owner <owner> --format json and read the number from the output. (3) STATUS FIELD NAME — default Status, ask if they want a different name. (4) STATUS OPTION NAMES — default to the five Facto uses: Backlog, In progress, In review, In test, Done; ask whether to rename any. (5) PR LINK FORMAT — ask whether facto:pr should use 'Resolves #-issue' which auto-closes on merge and is the GitHub default, or 'Refs #-issue' which does not auto-close; default is Resolves. Then write .facto/settings.json at the repo root, found with git rev-parse --show-toplevel, using the skeleton from the skill: a top-level tracker object with type github-issues, repo, a project object holding owner, number and name, status_field, a status_values map with keys backlog, in_progress, in_review, in_test and done, branch_issue_pattern set to the Facto default that captures the issue number from the branch name, pr_link_format, skill_signature_prefix, and a labels object whose ignore list holds test-fi. If the user wants task planning docs somewhere other than the default facto-tasks/, add a top-level tasks_dir key with that path; omit it to use the default."
+    ]
+
+    hooks_gate [
+        shape=hexagon,
+        label="Does this repo need per-task worktree setup and teardown - installing dependencies, copying .env, running migrations, starting or stopping services, freeing ports?",
+        question_type="yes_no"
+    ]
+
+    write_hooks [
+        label="Phase 4: Worktree Hook Stubs",
+        prompt="Create the worktree hook stubs in this repo's .facto/ directory. Do NOT overwrite hooks that already exist — if one is present, report it and leave it alone. Create .facto/worktree-setup.sh, which runs after task-start creates a worktree, and .facto/worktree-teardown.sh, which runs before task-end removes it. Each receives the worktree path as its first positional argument. Seed them as executable no-op templates: a shebang, a comment naming when the hook fires and that the worktree path arrives as the first argument, and commented-out examples for the common cases — installing dependencies, copying a .env file in from the main checkout, running migrations, starting or stopping services, and freeing ports. Make both files executable. Tell the user the stubs are no-ops until they fill them in."
+    ]
+
+    verify [
+        label="Phase 5: Activate And Verify",
+        prompt="Report the result and tell the user how to activate it. PATH and alias changes only take effect in new shells. Report: (1) the profile file the PATH block went into, and that they should open a new terminal or source that file before task-start, task-list and task-end will work; (2) whether a tracker was configured, and if so the repo slug and the Project written to .facto/settings.json — verify it parses by running facto-helper.sh tracker.field repo, which should print the repo slug, and report the actual output; (3) which worktree hook stubs were created, if any, and which pre-existing ones were left untouched. If any check fails, say which one and what the error was rather than reporting success."
+    ]
+
+    start -> resolve_checkout
+    resolve_checkout -> path_setup -> tracker_gate
+    tracker_gate -> tracker_interview [label="[Y] Yes"]
+    tracker_gate -> hooks_gate [label="[N] No"]
+    tracker_interview -> hooks_gate
+    hooks_gate -> write_hooks [label="[Y] Yes"]
+    hooks_gate -> verify [label="[N] No"]
+    write_hooks -> verify
+    verify -> exit
+}

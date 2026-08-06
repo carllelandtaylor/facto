@@ -1,0 +1,33 @@
+# Fabro environment for running agent stages through Claude Code over ACP.
+#
+# This is a template, not a file Fabro reads. Environments are per-project:
+# copy this block into a repository's .fabro/project.toml, then select it from
+# a workflow with:
+#
+#   [run.environment]
+#   id = "claude-acp"
+#
+# Prerequisites:
+#   1. Build the image (from this directory):
+#        docker build -t fabro-claude-acp:1 -f docker/claude-acp.Dockerfile .
+#   2. Mint a long-lived subscription token:
+#        claude setup-token
+#   3. Store it in Fabro's secret vault:
+#        fabro secret set CLAUDE_CODE_OAUTH_TOKEN
+#
+# The image itself contains no credentials. The token is injected as a
+# container environment variable at run time and is not persisted into the run
+# definition.
+#
+# Do not set ANTHROPIC_API_KEY anywhere in the environment. Claude Code checks
+# it before CLAUDE_CODE_OAUTH_TOKEN, so a stray key silently switches you from
+# subscription billing to API billing.
+
+[environments.claude-acp]
+provider = "docker"
+
+[environments.claude-acp.image]
+docker = "fabro-claude-acp:1"
+
+[environments.claude-acp.env]
+CLAUDE_CODE_OAUTH_TOKEN = "{{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"

@@ -1,0 +1,56 @@
+digraph FactoIterate {
+    graph [goal="Apply developer feedback to an in-progress PR: make the code changes, commit them cleanly, push, and update the pull request"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // Phase 1: gather branch, working tree and PR state in one pass. Exits
+    // non-zero when there is no OPEN pull request, which routes to the report.
+    confirm [
+        label="Phase 1: Confirm PR Context",
+        shape=parallelogram,
+        max_retries=0,
+        script="set +e; echo '--- branch ---'; git branch --show-current; echo '--- status ---'; git status; echo '--- pull request ---'; gh pr view --json number,url,title,body,state 2>/dev/null; STATE=$(gh pr view --json state -q .state 2>/dev/null); if [ \"$STATE\" != \"OPEN\" ]; then echo \"NO OPEN PR: this branch has no open pull request (state=${STATE:-none})\"; exit 1; fi; echo 'OK: open pull request found on this branch'"
+    ]
+
+    // max_visits bounds the clarification loop below.
+    parse [
+        label="Phase 2: Parse Feedback",
+        shape=tab,
+        max_visits=3,
+        prompt="Break the developer's feedback into discrete changes. Each change must be self-contained — a single edit that can be described in one sentence, such as 'remove plan.md from the repo', 'rename `fetchData` to `loadData`', or 'add error handling to the webhook endpoint'.\n\nFor each change, state what to change, where it lives, and what the result should look like. Then note the dependencies between them: which changes touch the same files, and which ones depend on another change's result. That determines whether the work runs in parallel or in sequence.\n\nEnd this stage as SUCCEEDED and output the numbered list of discrete changes when the feedback is clear enough to act on. End this stage as FAILED when any part of the feedback is unclear or ambiguous — when you cannot tell which file, symbol or behavior is meant, or when a request could reasonably be read two different ways — and say precisely what is ambiguous and what you need to know. The next step asks the developer, and their answer comes back here to be parsed again. Do not guess at ambiguous feedback in order to avoid failing."
+    ]
+
+    clarify [
+        label="What Did You Mean?",
+        shape=hexagon
+    ]
+
+    execute [
+        label="Phase 3: Execute Changes In Subagents",
+        prompt="Carry out the parsed changes, one subagent per change. Each subagent receives a clear description of the single change it is responsible for, reads the relevant files, makes the edit, and verifies the edit looks correct. No subagent commits anything — they only make code changes; committing is handled by the pull request step that follows.\n\nChoose the execution shape from the dependency notes produced by the parse step. When the changes touch different files and are independent of each other, launch the subagents in PARALLEL, all in one batch. When changes touch the same files, or one change depends on another's result, run them SERIALLY in dependency order.\n\nDo only what the feedback asked for — do not take the opportunity to make unrelated improvements, and do not expand a change beyond the sentence that described it.\n\nReport one line per change: what was changed and in which files."
+    ]
+
+    // Phases 4: hand the finished changes to the PR procedure, which commits them
+    // into the right place, pushes, and updates the pull request in place. Do not
+    // prescribe amend vs fixup vs new commit — that decision belongs to it.
+    pr [import="../facto-pr/workflow.fabro"]
+
+    report [
+        label="Phase 5: Report",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Write one short message reporting what this run did, using only what actually happened in the steps above.\n\nIf the context step found no open pull request on this branch, say exactly that and offer the alternative: `No open PR on this branch. Want me to create one? (/facto:pr)` — then stop; nothing else was done.\n\nOtherwise report, in this order: WHAT WAS CHANGED, one line per discrete change. HOW IT WAS COMMITTED, in the terms the commit step reported — amended into a named commit, or a new commit with its subject. WHETHER THE PR WAS UPDATED. THE PR URL. Keep it short; do not restate the diff or re-explain the reasoning."
+    ]
+
+    start -> confirm
+    confirm -> parse [label="Open PR", condition="outcome=succeeded"]
+    confirm -> report [label="No open PR"]
+    parse -> clarify [label="Ambiguous feedback", condition="outcome=failed"]
+    parse -> execute
+    clarify -> parse [freeform=true]
+    execute -> pr
+    pr -> report
+    report -> exit
+}
