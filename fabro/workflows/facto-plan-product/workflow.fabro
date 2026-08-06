@@ -1,0 +1,227 @@
+digraph FactoPlanProduct {
+    graph [
+        goal="Create product requirements for a new feature in an existing project through a collaborative interview, and produce a product requirements document",
+        rankdir=LR,
+        max_node_visits=40
+    ]
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    intake [
+        label="Absorb Provided Context",
+        thread_id="plan-product",
+        fidelity="full",
+        prompt="You are running the Facto product-requirements skill. Your job across this whole workflow is to produce product requirements only — no implementation details, no tech stack decisions, no technical design, and no visual/UI design.
+
+Right now, absorb whatever context the developer has already given you: a feature description, a ticket, a conversation, related product docs, user feedback, or design mockups. Read any files or links that were pointed at. Do NOT start exploring the code base — this skill is about the product, not the implementation.
+
+Then write a short note (3-6 lines) stating: what feature or problem area you believe this is about, what context you were given, and what you are still missing. If you were given almost nothing, say so plainly — the next step asks the developer directly.
+
+Interview style for every step of this workflow: lead with recommendations rather than open-ended questions, be specific about actual product behavior and existing screens, respect stated constraints such as 'keep it simple' or 'MVP only', and do not over-engineer. A small feature does not need a twelve-question interview."
+    ]
+
+    ask_problem [
+        shape=hexagon,
+        question_type="freeform",
+        max_visits=3,
+        label="Phase 1 — The problem. What problem is this feature solving? What pain points do users experience today, and why does this need to be built now? If I have already summarised this wrongly, correct me here."
+    ]
+
+    ask_users [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 1 — Who it's for. Who specifically will use this feature? What are their characteristics and context, and how does this fit into their existing workflow?"
+    ]
+
+    ask_success [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 1 — What success looks like. What are the primary goals for this feature, what jobs are users trying to get done, and what does success look like for a user after this ships?"
+    ]
+
+    summarize_problem [
+        label="Summarize the Problem",
+        thread_id="plan-product",
+        fidelity="full",
+        prompt="Phase 1 is complete. The developer's three answers are in context under the human.gate.text key for each gate that has run (ask_problem, ask_users, ask_success) — read them from the conversation context, do not invent answers.
+
+Produce a brief summary of 5-10 bullet points covering: the problem being solved, the pain points today, why now, who the feature is for and their context, the primary goals, and the jobs to be done. Share it with the developer so they can confirm it.
+
+If anything is ambiguous or seems incomplete, say exactly what is unclear and what you would need — do not guess and do not paper over a gap. Keep it to the product level; no implementation or design commentary."
+    ]
+
+    confirm_understanding [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Does that summary of the problem, the users, and the goals match what you meant?"
+    ]
+
+    propose_features [
+        label="Propose Features and Options",
+        thread_id="plan-product",
+        fidelity="full",
+        max_visits=3,
+        prompt="Phase 2, part one. Based on the problems, pain points and goals confirmed in Phase 1, propose the feature set collaboratively.
+
+For each proposal: name the feature, state which Phase 1 problem or goal it addresses, and explain the rationale in the form 'to solve <problem>, we could <option A> or <option B>'. Offer genuine options where reasonable and explain how the different approaches solve the same problem in different ways. Name the trade-offs explicitly — simplicity versus power, scope versus timeline.
+
+Lead with a recommendation for each one: say what you would pick and why, rather than asking the developer to choose from a menu with no guidance. Group related questions into a single message. Do not propose implementation approaches, libraries, data models, or screen layouts — stay at the level of what the product does for the user.
+
+End by asking the developer for their reaction to each proposal."
+    ]
+
+    react_features [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 2 — Which of these features do you want, which would you drop, and which of the options would you pick? Tell me anything I have proposed that misses the point."
+    ]
+
+    decide_scope [
+        label="Decide Scope",
+        thread_id="plan-product",
+        fidelity="full",
+        prompt="Phase 2, part two. The developer's reaction is in context under human.gate.text. Build on it: where they liked something, dig deeper; where they did not, pivot rather than re-arguing.
+
+Now close out scope. Every proposed feature needs an explicit decision — in scope or out of scope for this release. There is no middle tier. If a feature's inclusion depends on how costly it turns out to be, keep it in the in-scope list with an inline note stating the condition, for example 'in scope only if trivial to implement; otherwise defer'. Never park a feature in an ambiguous 'maybe' bucket.
+
+Check that every in-scope feature ties back to a specific problem or goal from Phase 1, and say which one. If an in-scope feature does not tie back to anything, either name the goal it actually serves or move it out of scope.
+
+Present the two lists — in scope and out of scope — and ask the developer to confirm the split."
+    ]
+
+    confirm_scope [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Is this the right in-scope / out-of-scope split for this release?"
+    ]
+
+    resolve_task_dir [
+        shape=parallelogram,
+        label="Resolve Task Directory",
+        script="set -e; TASK_DIR=\"$(facto-helper.sh task-dir)\"; mkdir -p \"$TASK_DIR\"; echo \"$TASK_DIR\""
+    ]
+
+    ask_slug [
+        shape=hexagon,
+        question_type="freeform",
+        label="I could not resolve the task directory automatically — you are probably not on a task worktree or feature branch. Give me a short kebab-case feature slug to use, for example 'bulk-invite-members'."
+    ]
+
+    make_task_dir [
+        label="Create Task Directory From Slug",
+        thread_id="plan-product",
+        fidelity="full",
+        prompt="The automatic task-directory lookup failed. The developer's kebab-case slug is in context under human.gate.text.
+
+Run `TASK_DIR=\"$(facto-helper.sh task-dir \"<slug>\")\"` with that slug, then `mkdir -p \"$TASK_DIR\"`. Report the resulting absolute path. All planning docs for one task live together in `facto-tasks/<task-slug>/`, so this path must be the shared per-task directory and not an ad-hoc location. No developer confirmation of the path is required — just report it and continue."
+    ]
+
+    write_prd [
+        label="Write Product Requirements Document",
+        thread_id="plan-product",
+        fidelity="full",
+        prompt="Phase 4. Write the product requirements document to `<TASK_DIR>/product-requirements.md`, using the task directory resolved in the previous step. Do not ask any more questions — derive the whole document from what has been gathered so far.
+
+Include a header noting which feature area the document covers and the date it was created. The created date lives in the header, not in the filename.
+
+The document must contain these sections:
+- The Problem — why we are building this and what pain points exist today.
+- Who This Is For — target users and their context.
+- What Users Want to Accomplish — goals and jobs to be done.
+- Feature Overview — a high-level summary of what is being built.
+- Core Features (In Scope) — the features that will be built in this release. Any feature whose inclusion is conditional on implementation cost carries an inline note stating the condition, for example 'added only if trivial to implement'.
+- User Workflows — step-by-step flows for the key user journeys.
+- Success Criteria — how we will know this feature is working.
+- Out of Scope — features explicitly not being built in this release, including any cost-conditional features that were deferred.
+- Future Enhancements — ideas that came up but are deferred.
+- Open Questions — anything unresolved that needs further input.
+
+Keep it strictly at the product level. No tech stack, no data models, no API shapes, no screen layouts or visual design. Then tell the developer the absolute path you wrote it to."
+    ]
+
+    review_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        max_visits=6,
+        review_target="write_prd",
+        label="I've written the product requirements to the task directory. Does the overall scope feel right? Are there features missing, unnecessary, or on the wrong side of the in-scope / out-of-scope line?"
+    ]
+
+    collect_feedback [
+        shape=hexagon,
+        question_type="freeform",
+        label="Tell me what to change — scope, missing features, features that should move across the in-scope line, wording, or anything that reads wrong."
+    ]
+
+    revise_prd [
+        label="Revise the Requirements",
+        thread_id="plan-product",
+        fidelity="full",
+        prompt="Phase 5. The developer's feedback is in context under human.gate.text.
+
+Address every piece of it — not the easy parts only. Update `product-requirements.md` in place by editing the file; do not rewrite it from scratch, and do not lose sections the developer did not comment on.
+
+If a piece of feedback reopens an earlier phase — a problem statement that was wrong, a user group that was missed, a feature that should never have been proposed — rework that section properly rather than bolting a note on the end.
+
+Then tell the developer exactly what changed, item by item, and ask for feedback again."
+    ]
+
+    commit_prd [
+        label="Commit the Requirements",
+        thread_id="plan-product",
+        fidelity="full",
+        prompt="The developer has explicitly accepted the requirements. Planning docs are always committed.
+
+Stage only the requirements file — never `git add -A`:
+
+    git add \"$TASK_DIR/product-requirements.md\"
+    git commit -m \"docs: add product requirements for <task-slug>\"
+
+Substitute the real task directory and task slug. If the commit fails, report the exact error rather than working around it with a broader stage."
+    ]
+
+    handoff [
+        shape=tab,
+        label="Hand Off",
+        thread_id="plan-product",
+        fidelity="full",
+        prompt="Close out. Tell the developer, in a few lines: the absolute path of the committed product requirements document, and that `/facto:plan-design` is the recommended next step — it will design the UI (screens, layout, states, interactions) from these requirements before `/facto:plan-implementation` turns them into a technical plan. Do not start either of those here."
+    ]
+
+    start -> intake
+    intake -> ask_problem
+
+    ask_problem -> ask_users [freeform=true]
+    ask_users -> ask_success [freeform=true]
+    ask_success -> summarize_problem [freeform=true]
+
+    summarize_problem -> confirm_understanding
+
+    confirm_understanding -> propose_features [label="[Y] Yes, that's right"]
+    confirm_understanding -> ask_problem [label="[N] No, let me correct it"]
+
+    propose_features -> react_features
+    react_features -> decide_scope [freeform=true]
+    decide_scope -> confirm_scope
+
+    confirm_scope -> resolve_task_dir [label="[A] Scope is right"]
+    confirm_scope -> propose_features [label="[R] Rework the feature set"]
+
+    resolve_task_dir -> write_prd [condition="outcome=succeeded"]
+    resolve_task_dir -> ask_slug
+
+    ask_slug -> make_task_dir [freeform=true]
+    make_task_dir -> write_prd
+
+    write_prd -> review_gate
+
+    review_gate -> commit_prd [label="[A] Accept the requirements"]
+    review_gate -> collect_feedback [label="[F] I have feedback"]
+
+    collect_feedback -> revise_prd [freeform=true]
+    revise_prd -> review_gate
+
+    commit_prd -> handoff
+    handoff -> exit
+}

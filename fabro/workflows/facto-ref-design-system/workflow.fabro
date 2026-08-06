@@ -1,0 +1,51 @@
+digraph FactoRefDesignSystem {
+    graph [goal="Maintain a project's evergreen design docs under docs/design/: the directory layout and index, the view model, the view specs, and the upsert sync routine"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    classify_views [
+        label="Classify Surfaces, Views And States",
+        prompt="Establish the view model for the work in scope, using this vocabulary exactly. SURFACE: a distinct target that has UI, for example web, ios, android. Backend-only targets with no visual output do not get evergreen docs. VIEW: an addressable UI surface — a place the user can be, or a layer that appears over a place. Every view gets its own spec and per-state harnesses, and every view is specific to one surface. Types are: screen — a destination or route the user navigates to, such as Home, Settings, Detail; region — persistent chrome composed into many screens, such as a nav bar, tab bar, side panel or header, which appears across contexts but is documented once; overlay — a transient surface that appears over a host view, such as a modal, bottom sheet, popover, toast or menu, which is also documented once. STATE: a view can be in different states — default or loaded, loading, empty, error, and edge cases — and every state gets its own entry in the view spec. Produce the task's view inventory: for each view, its surface, its slug (the view's role name), its type tag, its states, and for overlays and regions the invoked-from or appears-in list. Task: {{ goal }}"
+    ]
+
+    layout_and_paths [
+        label="Locate The docs/design Tree",
+        prompt="Locate or create the evergreen design tree and fix the paths you will write. The layout under <repo root>/docs/design/ is: index.md, the index of every design doc; then one <surface>/ directory per visual surface, holding design-system.md and any other surface-wide docs at the surface root; then <surface>/views/ containing assets/ for assets shared by multiple views (with fonts under assets/fonts/<font>.ttf) and one <view>/ folder per view whose slug is the view's role name, each holding <view>.html (the view spec canvas: meta-card plus states band) and one _<state>.html render harness per state. The docs are committed in-repo, so every link is relative: from <view>.html to a harness use src=\"_<state>.html\" in the same folder; from <view>.html to a source file use href=\"../../../../../<repo-path>\", five levels up to the repo root; from _<state>.html to fonts use url('../assets/fonts/<font>.ttf'), one level up; from index.md to a spec use <surface>/views/<view>/<view>.html; from index.md to a surface-wide doc use <surface>/<doc>. Read the existing docs/design/index.md if there is one, and report which surfaces and views already exist."
+    ]
+
+    upsert_plan [
+        label="Plan The Upsert",
+        prompt="Decide, per view in the task's inventory, which upsert action applies. This routine is the single source of truth for keeping the evergreen docs current, and both facto:plan-design and facto:setup-design call it. For each view in scope: (1) if the view has no folder at docs/design/<surface>/views/<view>/, it must be created; (2) if the view already has a folder, its spec and harnesses must be updated to reflect the changes this task introduces; (3) if this task removed the view, its folder must be deleted, and if this task renamed it, the folder and the <view>.html inside must be renamed, keeping the slug otherwise stable. Also list every view or surface added, removed or renamed, because each one requires a matching edit to docs/design/index.md. Output the plan as an explicit per-view list of actions; do not make the file changes in this stage."
+    ]
+
+    write_view_specs [
+        label="Write The View Specs",
+        max_visits=3,
+        prompt="Execute the upsert plan and write the view specs. The spec is a canvas shell that embeds one per-state render harness; build the harnesses per facto:ref-design-mock's shell-plus-per-state-harnesses structure. (1) The view's folder is docs/design/<surface>/views/<view>/. Copy [facto] plugins/facto/skills/ref-design-system/template-evergreen-view-spec.html to <view>.html there and fill in its header, meta-card, and one frame per state. Each state's harness is _<state>.html in the same folder, and shared fonts live at docs/design/<surface>/views/assets/fonts/. Wire the src, source and font links per the relative-path table established earlier. (2) At the top of the spec, declare the view's type tag — screen, region, overlay, or a best-fit label — and, for overlays and regions, the invoked-from or appears-in list. (3) Draw EVERY state the view can be in: default or loaded, loading, empty, error, and edge cases, one harness and one frame per state. The spec is not complete until all states are drawn, not just the happy path. (4) When the view already exists in a running app — bootstrapping from current reality, or auditing drift — build each harness device-accurately and prove it against the live app per facto:ref-design-mock's how-to-match-a-real-running-app and render-at-device-scale-and-diff sections. Save the live screenshots you diff against in the task's inventory directory as <task-dir>/inventory/<view-slug>--<state>.png; they are the per-state verification diff targets. Prove each state you can drive the app into, and for states you cannot reach live, build them from source and the design system and note that they were not verified against a live capture. Also apply the delete and rename actions from the plan."
+    ]
+
+    verify_specs [
+        label="Render And Verify The Specs",
+        prompt="Verify the specs by rendering them, not by reading them. To pull structured facts — a view's type, its states — reading the file is enough, but to judge appearance or fidelity you must render: serve the view's folder over HTTP so the spec can embed its sibling _<state>.html harnesses, screenshot via Playwright per facto:ref-design-mock's serve-and-inspect section, then compare that render against a render of the running app and prove the match per its render-at-device-scale-and-diff section. Never judge appearance from raw markup. Check three things for every view in scope: every state in the inventory has both a harness and a frame in the spec; every relative link resolves (harness src, source href, font url); and every state that can be driven live is proven against its saved inventory screenshot. End this stage as succeeded when all three hold. End it as failed, listing exactly which view and state failed which check, so the specs are rewritten and re-verified."
+    ]
+
+    update_index [
+        label="Update The Index",
+        prompt="Update docs/design/index.md so it matches the tree on disk. The index is the entry point for discovering design docs: an agent or developer looking for what already exists starts here. It has one section per surface, and each section links that surface's overall design docs — its design-system.md and any whole-surface files such as light-mode.html — and every view spec under views/. Use the relative forms <surface>/views/<view>/<view>.html for a spec and <surface>/<doc> for a surface-wide doc. Add an entry for every view or surface this task added, remove the entry for every one it deleted, and rewrite the entry for every one it renamed. Leave entries for views outside this task's scope untouched."
+    ]
+
+    commit_report [
+        shape=tab,
+        label="Commit And Report",
+        prompt="Commit the modified evergreen design files together with the task's design work, in the same commit rather than a separate follow-up. Then report: the surfaces and views created, updated, renamed and deleted; the states drawn for each view; which states were proven against a live capture and which were built from source and the design system without live verification; and the index entries changed. Keep it factual and short."
+    ]
+
+    start -> classify_views
+    classify_views -> layout_and_paths -> upsert_plan -> write_view_specs -> verify_specs
+    verify_specs -> update_index [label="Verified", condition="outcome=succeeded"]
+    verify_specs -> write_view_specs [label="Fix gaps"]
+    update_index -> commit_report
+    commit_report -> exit
+}

@@ -1,0 +1,184 @@
+digraph FactoFixBug {
+    graph [goal="Fix a reported bug end-to-end and autonomously: reproduce it, diagnose the real root cause, fix it with adaptive escalation, verify against the logged repro steps, open a pull request, and drive CI to green"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    understand_locate [
+        label="Phase 1: Understand And Locate",
+        thread_id="fix-bug",
+        fidelity="full",
+        prompt="Understand the bug and locate the code it lives in. The input is either a GitHub Issue number or a free-text description of the symptom: {{ goal }}.\n\nREAD THE BUG. If you were given an issue number, read it with `gh issue view <n>` and again with `gh issue view <n> --comments`; otherwise use the free-text description you were given. Capture EXPECTED BEHAVIOR versus ACTUAL BEHAVIOR, and the AFFECTED AREA — which screen, command, endpoint or module is involved.\n\nLOCATE THE CODE. Search the codebase by feature name, route, error string, command or UI label, and trace the relevant code until you understand where the behavior actually lives. Do not form a theory of the cause yet — that is a later phase — but do know which files and functions are in play.\n\nOPTIONAL STATUS WRITE, best-effort, warn and continue. If the repo has an active Issue tracker, set the Issue's Project Status to in-progress, but only when it is currently sitting at the tracker's backlog value. Use `facto-helper.sh tracker.exists` to detect the tracker and `facto-helper.sh current-issue` to get the issue number; read `project.owner`, `project.number`, `project.name`, `status_field`, `status_values.backlog`, `status_values.in_progress` and `repo` with `facto-helper.sh tracker.field <name>`; read the current status from `gh issue view <n> --repo <slug> --json projectItems`; and if it equals the backlog name, resolve the project id, status field id, option id and item id with `gh project view`, `gh project field-list` and `gh project item-list`, then apply it with `gh project item-edit`. A failure here is a warning, never an error — print the warning and carry on.\n\nCORE GUARDRAILS that govern this whole run and every phase after it. Fix the ROOT CAUSE, not the symptom — never swallow an error or special-case the one input from the report. Do NOT remove, disable or weaken working functionality to make the symptom go away; no regressions. Add a regression test that fails before the fix and passes after, wherever the project has a test suite. Work AUTONOMOUSLY — escalation in this workflow means heavier tooling for a bigger change, never a request for developer review, and the only genuinely blocking case is being unable to reproduce the bug.\n\nReport the expected-versus-actual summary, the affected area, the files and functions you traced, and the outcome of the optional Status write."
+    ]
+
+    // Phase 2: reproduce. The imported sub-workflow drives the app until the
+    // symptom is observed and distills the minimal repeatable sequence.
+    repro [
+        import="../facto-repro-bug/workflow.fabro",
+        model="opus"
+    ]
+
+    check_repro [
+        label="Phase 2: Confirm The Reproduction",
+        shape=tab,
+        prompt="Read the reproduction report produced by the previous stage and decide whether the bug was actually reproduced.\n\nSave the confirmed repro verbatim so later phases can re-run it exactly: the PRECONDITIONS and data, the ORDERED minimal steps, the OBSERVED (wrong) result, the EXPECTED result, and the evidence. Every verification in this workflow runs against exactly these steps, so restate them in full rather than summarizing them away.\n\nEnd this stage as SUCCEEDED only if the report says the bug was reproduced and someone was observed to see the wrong behavior. End this stage as FAILED if the report is a could-not-reproduce result. Never upgrade a could-not-reproduce into a reproduction, and never invent steps the report does not contain."
+    ]
+
+    cnr_report [
+        label="Could Not Reproduce",
+        shape=tab,
+        prompt="The bug could not be reproduced, so this run stops here rather than attempting a speculative fix for a bug nobody has observed. Do not edit any code.\n\nWrite the could-not-reproduce result: what was reported; every path, input and variation that was tried, taken from the reproduction report's logged attempts; what was observed instead of the symptom; and any hypotheses for why the symptom did not surface — for example a fixed version, a missing precondition, environment-specific state, or a misread report. Say plainly that no fix was made and that the report needs more detail before the bug can be fixed."
+    ]
+
+    diagnose [
+        label="Phase 3: Diagnose Root Cause",
+        thread_id="fix-bug",
+        fidelity="full",
+        prompt="Trace from the reproduced symptom to the ACTUAL cause in the code — not the surface location where it manifests. Follow the data and control flow backwards from the point where the wrong behavior becomes observable until you reach the code that is genuinely wrong, and confirm your theory against the code rather than asserting it. Add instrumentation or a scratch script if that is what it takes to see the real state at the failure point.\n\nProduce exactly two things, because they drive every later phase:\n\n1. A one-line ROOT-CAUSE STATEMENT naming the specific code and the specific wrongness — for example 'the retry wrapper resets the backoff counter on every call because it is constructed inside the loop body'.\n\n2. A short PROPOSED FIX APPROACH: what should change, in which files, and why that fixes the cause rather than hiding the symptom. Include how the fix avoids removing or weakening any working behavior, and what regression test would fail before it and pass after.\n\nIf the trace does not reach a cause you can state this concretely, keep digging rather than guessing — a vague root cause produces a symptom patch."
+    ]
+
+    assess_fix_size [
+        label="Phase 4: Choose The Fix Path",
+        shape=tab,
+        prompt="Choose between the direct path and the escalated path for the fix approach you just proposed. Escalation is purely about heavier tooling for a bigger change — it is never a request for developer review, and either path runs autonomously to completion.\n\nESCALATE if ANY of these holds: the fix touches more than about two files, or touches shared or core logic that many things depend on; it introduces a new abstraction or interface; it requires a schema, API or migration change; or it is otherwise large or multi-step.\n\nOtherwise the fix is small and localized, and takes the DIRECT path.\n\nEnd this stage as SUCCEEDED if the checklist says escalate. End this stage as FAILED if the fix is small and localized and takes the direct path. State which checklist item triggered escalation, or state that none did, so the choice is auditable."
+    ]
+
+    escalated_gate [
+        shape=diamond,
+        label="Escalated: large or structural change"
+    ]
+
+    direct_gate [
+        shape=diamond,
+        label="Direct: small and localized fix"
+    ]
+
+    // ---- Direct path (Phase 4 direct, then Phases 5 and 6) ----
+
+    direct_fix [
+        label="Direct Fix",
+        model="sonnet",
+        max_visits=6,
+        prompt="Make the fix directly. You have the root-cause statement, the proposed fix approach, and the confirmed reproduction steps.\n\nEdit the code so the root cause is corrected at its source. Keep the change minimal and localized — this path was chosen precisely because the fix is small. Match the surrounding code's style, naming and patterns, and read the root and subdirectory CLAUDE.md files plus CONTRIBUTING.md if they exist before writing anything.\n\nAdd a REGRESSION TEST wherever the project has a test suite: one that fails on the unfixed code and passes with the fix. Put it where the project's own tests for that area live, and assert the corrected behavior rather than the internals of your fix. If the project genuinely has no test suite, say so — the verified reproduction steps become the regression check instead.\n\nDo NOT delete, disable or weaken correct behavior to make the symptom disappear, do not swallow errors, and do not special-case the one input from the bug report. Run the project's own build, lint and test commands over what you changed and fix anything you broke.\n\nReport the files you changed, the regression test you added, and the result of the validation commands you ran."
+    ]
+
+    commit_direct [import="../facto-commit-or-amend/workflow.fabro"]
+
+    verify_direct [
+        label="Verify Against The Logged Repro Steps",
+        thread_id="fix-bug",
+        fidelity="full",
+        max_visits=8,
+        prompt="Re-run the EXACT reproduction sequence that was logged earlier — the same preconditions and data, the same ordered actions, the same observation point. Do not substitute a unit test for the reproduction; the reproduction is what proves the reported bug is gone.\n\nThe fix is good only when BOTH hold: the bug is gone, AND nothing else regressed. Check for regressions by running the project's full test suite and by exercising the behavior immediately around the change — the paths that share the code you touched, and the working functionality that had to be preserved.\n\nEnd this stage as SUCCEEDED only when the reproduction no longer shows the wrong behavior and no regression appeared. End this stage as FAILED if the symptom still appears, if it appears in a changed form, or if any previously working behavior broke — and say precisely which of those happened, with the evidence."
+    ]
+
+    rediagnose_direct [
+        label="Re-Diagnose And Retry",
+        thread_id="fix-bug",
+        fidelity="full",
+        max_visits=6,
+        prompt="The verification failed: either the bug is still there or the fix regressed something. Diagnose further rather than patching harder.\n\nIf the symptom persists, your root cause was wrong or incomplete — go back to the trace, work out what the previous attempt missed, and state a corrected root cause. If a regression appeared, identify exactly which behavior broke and why the change broke it; the constraint is absolute, so a fix that trades the bug for a regression is not a fix.\n\nCount the fix attempts made so far against the maximum number of fix attempts, which defaults to 5 unless the caller specified another number.\n\nEnd this stage as SUCCEEDED if attempts remain, and hand forward the corrected root cause and a revised fix approach for the next attempt. End this stage as FAILED if the attempt budget is exhausted — the workflow then stops and reports honestly rather than thrashing."
+    ]
+
+    // Phase 5, direct path: the escalated path gets its review loop from
+    // /facto:implement, so this pass exists only here.
+    review_direct [
+        import="../facto-review-loop-code/workflow.fabro",
+        model="opus"
+    ]
+
+    // Phase 6, direct path: /facto:pr links the active Issue and writes the
+    // Verification section from the repro steps.
+    pr_direct [import="../facto-pr/workflow.fabro"]
+
+    // ---- Escalated path (Phase 4 escalated; review and PR come bundled) ----
+
+    plan_brief [
+        label="Brief The Implementation Plan",
+        thread_id="fix-bug",
+        fidelity="full",
+        prompt="Assemble the brief that the planning sub-workflow runs on, so it plans the FIX rather than a feature. State all of the following explicitly and completely, because the planner sees this brief and not the earlier conversation.\n\n1. THE ROOT CAUSE — the one-line statement from the diagnosis, plus the trace that supports it and the files and functions involved.\n\n2. THE LOGGED REPRODUCTION STEPS — preconditions and data, the ordered minimal actions, the observed wrong result and the expected result, verbatim. The plan's validation must be able to re-run exactly these.\n\n3. THE NO-REGRESSION CONSTRAINT — do not remove, disable or weaken working functionality to make the bug disappear. Say this as a hard constraint on every step of the plan, not as a preference.\n\n4. THE REGRESSION TEST REQUIREMENT — the plan must include a test that fails on the unfixed code and passes with the fix, wherever the project has a test suite.\n\n5. THE ESCALATION REASON — which checklist item made this large or structural, so the plan is scoped to that reality.\n\nDo not write the plan here; produce the brief."
+    ]
+
+    plan_fix [import="../facto-plan-implementation/workflow.fabro"]
+
+    // /facto:implement bundles the review loop and PR creation, so the escalated
+    // path deliberately does not re-run the review or PR sub-workflows.
+    implement_fix [
+        import="../facto-implement/workflow.fabro",
+        model="opus"
+    ]
+
+    verify_escalated [
+        label="Verify The Escalated Fix Against The Repro Steps",
+        thread_id="fix-bug",
+        fidelity="full",
+        max_visits=8,
+        prompt="The plan has been implemented, reviewed and put into a pull request by the implementation sub-workflow. Now prove the reported bug is actually gone.\n\nRe-run the EXACT reproduction sequence that was logged earlier — the same preconditions and data, the same ordered actions, the same observation point. A passing test suite is not a substitute; the reproduction is what proves the reported bug is fixed.\n\nThe fix is good only when BOTH hold: the bug is gone, AND nothing else regressed. Run the project's full test suite and exercise the behavior around the change to confirm no working functionality was removed, disabled or weakened by the larger change.\n\nEnd this stage as SUCCEEDED when the reproduction is clean and no regression appeared. End this stage as FAILED if the symptom still appears, appears in a changed form, or any previously working behavior broke — and say precisely which, with evidence."
+    ]
+
+    escalated_fix [
+        label="Correct The Escalated Fix",
+        max_visits=6,
+        prompt="The verification of the implemented plan failed. Correct it here rather than re-planning the whole change.\n\nIf the symptom persists, work out what the implementation missed against the root cause and the reproduction, then make the targeted correction. If a regression appeared, identify the behavior that broke and restore it without reintroducing the bug — the no-regression constraint is absolute. Keep the correction scoped: amend the existing work, do not start a parallel approach.\n\nRun the project's build, lint and test commands over what you changed, and add or extend the regression test if the failure revealed a gap in it.\n\nCount the fix attempts made so far against the maximum number of fix attempts, which defaults to 5 unless the caller specified another number. End this stage as SUCCEEDED if attempts remain and you made a correction to verify. End this stage as FAILED if the budget is exhausted — the workflow then stops and reports honestly rather than thrashing."
+    ]
+
+    commit_escalated [import="../facto-commit-or-amend/workflow.fabro"]
+
+    ensure_pr_current [
+        label="Phase 6: Ensure The Pull Request Is Current",
+        thread_id="fix-bug",
+        fidelity="full",
+        prompt="The implementation sub-workflow already opened the pull request on this branch, so do not create a second one. Make sure the existing PR is current.\n\nRead it with `gh pr view --json number,url,state,title,body`. Confirm every commit on the branch is pushed — including any correction commits made while verifying — with `git status` and `git log @{u}..HEAD --oneline`, and push what is missing. Confirm the PR body reflects what actually landed: the root cause, what changed, and a Verification section that carries the logged reproduction steps and their now-clean result. Edit in place with `gh pr edit <number>`, correcting only what is stale and leaving developer-added sections verbatim; never regenerate the body from scratch.\n\nReport the PR number, its URL, and whether you changed anything."
+    ]
+
+    // ---- Phase 7 and 8: both paths converge here ----
+
+    watch_ci [
+        import="../facto-watch-and-fix-ci/workflow.fabro",
+        model="opus"
+    ]
+
+    summary [
+        label="Phase 8: Summary",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Report what this run actually did, using only what happened in the stages above. Do not invent a PR, a commit, a URL or a verification you did not perform.\n\nIf the bug could not be reproduced, report that result and stop there — what was reported, everything that was tried, and why no fix was attempted.\n\nIf the fix attempts were exhausted without a clean verification, say so plainly: the attempts made, what each one tried, and the state the branch is left in. Do not present an unverified fix as done.\n\nOtherwise report, in this order: BUG — what was reported. ROOT CAUSE — the one-line statement. PATH TAKEN — direct or escalated, and which checklist item drove it. VERIFICATION — the outcome against the logged reproduction steps, that the bug is gone and nothing regressed, and the regression test that was added, or that the project has no test suite. CI RESULT — green, or stuck with the specific failing checks and why. PR URL."
+    ]
+
+    start -> understand_locate
+    understand_locate -> repro
+    repro -> check_repro
+    check_repro -> diagnose [label="Reproduced", condition="outcome=succeeded"]
+    check_repro -> cnr_report [label="Could not reproduce"]
+    cnr_report -> summary
+
+    diagnose -> assess_fix_size
+    assess_fix_size -> escalated_gate [label="Large or structural", condition="outcome=succeeded"]
+    assess_fix_size -> direct_gate [label="Small and localized"]
+
+    direct_gate -> direct_fix
+    direct_fix -> commit_direct
+    commit_direct -> verify_direct
+    verify_direct -> review_direct [label="Bug gone, no regressions", condition="outcome=succeeded"]
+    verify_direct -> rediagnose_direct [label="Bug persists or regressed"]
+    rediagnose_direct -> direct_fix [label="Attempts remain", condition="outcome=succeeded"]
+    rediagnose_direct -> summary [label="Fix attempts exhausted"]
+    review_direct -> pr_direct
+    pr_direct -> watch_ci
+
+    escalated_gate -> plan_brief
+    plan_brief -> plan_fix
+    plan_fix -> implement_fix
+    implement_fix -> verify_escalated
+    verify_escalated -> ensure_pr_current [label="Bug gone, no regressions", condition="outcome=succeeded"]
+    verify_escalated -> escalated_fix [label="Bug persists or regressed"]
+    escalated_fix -> commit_escalated [label="Attempts remain", condition="outcome=succeeded"]
+    escalated_fix -> summary [label="Fix attempts exhausted"]
+    commit_escalated -> verify_escalated
+    ensure_pr_current -> watch_ci
+
+    watch_ci -> summary
+    summary -> exit
+}

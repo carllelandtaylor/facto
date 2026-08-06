@@ -1,0 +1,48 @@
+digraph FactoReproBug {
+    graph [goal="Reproduce a reported bug in the running app and capture precise, repeatable reproduction steps, or report a clean could-not-reproduce"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    understand_report [
+        label="Phase 1: Understand The Report",
+        prompt="Understand the bug report. The input is either a GitHub Issue number or a free-text description of the symptom: {{ goal }}. If you were given an issue number, read the full report with gh issue view <n>, including comments via gh issue view <n> --comments; otherwise use the free-text description provided. Extract the essentials: EXPECTED BEHAVIOR — what should happen; ACTUAL BEHAVIOR — what goes wrong, the symptom; AFFECTED AREA — which screen, command, endpoint or module is involved; and any preconditions, inputs, environment, or exact steps the report already provides. If the affected area is a visual view with an evergreen spec at docs/design/<surface>/views/<view>/<view>.html, discoverable via docs/design/index.md, use it as the authority for intended design: read it for the intended behaviour and states, and when the bug is about appearance — layout, spacing, color, alignment — render the spec by serving it and screenshotting with Playwright, then compare it against a render of the running app while reproducing, rather than judging intent from the markup. Finally, search the codebase for the relevant code by feature name, route, error string, command or UI label, so you know where the behavior lives and what to watch while reproducing. Never guess that a bug reproduces without observing it."
+    ]
+
+    bring_up_app [
+        label="Phase 2: Bring Up The App",
+        prompt="Bring the app up and pick a driver. Find how this project runs: look for a project-specific run skill or instructions first, then the README and docs, and defer to the built-in run skill where it fits the project type. Identify the start command or commands and any prerequisites — dependencies, environment variables, migrations, seed data. Start the necessary services and confirm the app is actually up before driving it. Then pick the driver that matches the affected area: for a WEB UI use the Playwright tools — browser_navigate, browser_snapshot, browser_take_screenshot, and the interaction tools browser_click, browser_type and the rest; for a CLI or API run the command directly or curl the endpoint; for library or internal logic write a small targeted script or a focused test that exercises the code path. Report which driver you chose and confirm the app responded."
+    ]
+
+    attempt_repro [
+        label="Phase 3: Attempt Reproduction",
+        max_visits=8,
+        prompt="Attempt to reproduce the bug and observe the result yourself. If the report has exact steps, follow them precisely and observe whether the bug occurs. If the report lacks exact steps, form a hypothesis about what triggers the bug from the affected area and the code you traced, then explore: vary inputs, preconditions, data, ordering, and the edge values most likely to surface the symptom. Watch for the symptom in the right place — UI state, response body, exit code, logs, or output — not just the absence of a crash. Record every attempt you make, with the exact steps and what you observed, so the effort can be reported precisely either way. End this stage as succeeded ONLY if you actually observed the symptom; end it as failed if you did not. Never claim a reproduction you did not observe."
+    ]
+
+    explore_variations [
+        label="Vary The Attempt",
+        max_visits=8,
+        prompt="The last attempt did not surface the symptom. Choose a materially different variation to try next, rather than repeating what already failed. Review the attempts logged so far and pick a new axis to vary: a different precondition or starting state, different input values including empty, maximum-length, unicode and boundary values, a different ordering of actions, different seed or fixture data, a different account or permission level, a different environment or feature-flag setting, or a different entry point into the same code path. State the hypothesis this variation tests before running it. Stay within the bounded effort cap: roughly 8 to 10 distinct attempts in total unless the caller gave a different cap. If the cap is now exhausted, end this stage as FAILED so the workflow proceeds to a clean could-not-reproduce report; otherwise end it as succeeded so the next attempt runs."
+    ]
+
+    confirm_distill [
+        label="Phase 4: Confirm And Distill",
+        prompt="You observed the bug. Both goals must be met before you finish: confirm it reproduces AND log a repeatable sequence. Reduce the path to the minimal precise repeatable sequence by dropping every step that is not required to trigger the bug — re-run after each removal to check the symptom still appears. Record, exactly: PRECONDITIONS AND DATA — required state, fixtures, environment, accounts; ORDERED ACTIONS — the exact numbered steps, with the precise input, click target or command at each; OBSERVED (WRONG) RESULT versus EXPECTED RESULT. Capture evidence that shows the wrong behavior: a screenshot, a log excerpt, command output, or a response body. Then re-run the minimal sequence once more to confirm it reliably reproduces. If it only reproduces intermittently, note that and the observed frequency."
+    ]
+
+    report_result [
+        label="Phase 5: Report",
+        prompt="Return the structured result using the reproduction report template at [facto] claude/skills/repro-bug/repro-template.md, with these sections: Bug; Environment / preconditions; Reproduction steps (numbered); Observed result; Expected result; Evidence; and Reproduced? Keep the steps minimal and exact — someone unfamiliar with the bug should be able to follow them verbatim and see the same wrong behavior. IF REPRODUCED: mark Reproduced? yes, include the minimal steps and the evidence, and note the reliability, either every time or intermittent with the observed frequency. IF NOT REPRODUCED after the effort cap: mark Reproduced? no, and state explicitly what was tried — the paths, inputs and variations from every logged attempt — plus any hypotheses for why the symptom did not surface. Do not guess or claim a reproduction you did not observe."
+    ]
+
+    start -> understand_report
+    understand_report -> bring_up_app -> attempt_repro
+    attempt_repro -> confirm_distill [label="Observed", condition="outcome=succeeded"]
+    attempt_repro -> explore_variations [label="Not observed"]
+    explore_variations -> report_result [label="Effort cap reached", condition="outcome=failed"]
+    explore_variations -> attempt_repro [label="Try again"]
+    confirm_distill -> report_result
+    report_result -> exit
+}

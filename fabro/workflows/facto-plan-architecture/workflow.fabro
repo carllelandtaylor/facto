@@ -1,0 +1,346 @@
+digraph FactoPlanArchitecture {
+    graph [
+        goal="Guide the developer through a structured technical architecture interview and produce a comprehensive architecture plan document",
+        rankdir=LR,
+        max_node_visits=50
+    ]
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    brain_dump [
+        shape=hexagon,
+        question_type="freeform",
+        label="To start: give me a quick summary on what you're thinking about building or changing. We'll go into more detail soon."
+    ]
+
+    absorb_brain_dump [
+        label="Absorb the Brain Dump",
+        thread_id="plan-arch",
+        fidelity="full",
+        max_visits=3,
+        prompt="You are running the Facto architecture-decision skill. Phase 1 is done: the developer's brain dump is in context under human.gate.text.
+
+Just listen. Do not ask follow-up questions here and do not start exploring the code base yet — Phase 4 is where the codebase comes in.
+
+Now prepare Phase 2 (Problems, Goals and Motivation). Write a short message that reflects back what you heard and asks about motivation only where it is not already clear from the dump: what problem or problems are we trying to solve, what the goals and expected impact are, whether we are enabling new use cases, and whether we are improving a non-functional aspect of the system such as performance, reliability or maintainability.
+
+Interview style for the whole workflow: one question at a time, never more than two closely related questions in one message. Lead with suggestions and informed recommendations rather than extracting information. Be direct — 'I'd go with X' is more useful than 'X has some advantages'. Respect stated constraints. Do not over-engineer; a small change does not need a fifteen-item decision log."
+    ]
+
+    ask_motivation [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 2 — Motivation. What problem(s) are we trying to solve, and what are the goals for this change? Are we enabling new use cases, or improving a non-functional aspect such as performance, reliability or maintainability?"
+    ]
+
+    propose_functional [
+        label="Propose Functional Requirements",
+        thread_id="plan-arch",
+        fidelity="full",
+        max_visits=3,
+        prompt="Phase 3a — Functional Requirements. The developer's motivation answer is in context under human.gate.text.
+
+Do not just ask an open-ended 'what do you need it to do?'. Propose candidate functional requirements based on everything you have heard, and ask the developer to confirm, add to, or correct them. Cover:
+- Core user-facing behaviours — what can a user do that they could not before?
+- Edge cases — what happens when things go wrong? What about deletions, conflicts, and limits?
+- Out-of-scope items — what are we explicitly NOT doing now?
+
+Number them FR-1, FR-2, and so on, with a short name each, so later phases can reference them by number and name. Still do not explore the code base."
+    ]
+
+    ask_functional [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 3a — Do these functional requirements look right? Confirm, correct, or add to them — including anything I have put in or left out of scope wrongly."
+    ]
+
+    nfr_reliability [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 3b — Is reliability an important consideration for this project right now? If so, what are the requirements around: testability (can the system be tested as a whole and in pieces?), availability (uptime, downtime during deploys, SLAs), misuse prevention (can other developers use it wrongly?), fault tolerance (what bad input or partial failures should it survive?), recoverability (can it get itself back to a good state?), and detectability (logs, alerts, dashboards)? If it's not important right now, just say so."
+    ]
+
+    nfr_performance [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 3b — Is performance an important consideration for this system right now? If so: resource allocation (CPU, memory, storage, network limits it must stay within), responsiveness (latency targets — p50, p95, p99), and profilability (can developers profile it, and is the tooling there?). If it's not important right now, just say so."
+    ]
+
+    nfr_maintainability [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 3b — Is maintainability an important consideration right now? If so: modifiability (how might this need to change, and does the design accommodate that without a rewrite?), reusability (which pieces should other systems reuse?), and learnability (can a new developer learn it — is documentation needed, are there unusual patterns?). If it's not important right now, just say so."
+    ]
+
+    nfr_scalability [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 3b — Is scalability an important consideration right now? If so, which dimensions need to scale (users, data volume, request rate, tenants), what scale must it handle at launch versus in one to two years, and are there specific targets or growth projections? If it's not important right now, just say so."
+    ]
+
+    nfr_security [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 3b — Is privacy or security an important consideration right now? If so: auditability (can we audit what data is used and stored, and are audit logs needed?), privacy (how do we guarantee data is only exposed to users who should see it — shared resources, caching, logging sensitive data?), and security (attack surfaces: input validation, authentication, authorization, third-party integrations). If it's not important right now, just say so."
+    ]
+
+    summarize_requirements [
+        label="Summarize the Requirements",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="Phase 3 is complete. All five non-functional categories have now been asked, and each answer is in context under human.gate.text for its gate. Where the developer said a category was not important right now, record that and move on — do not manufacture requirements they did not ask for.
+
+Summarize the requirements collected so far for confirmation:
+- Functional requirements as FR-1, FR-2, ... each with a short name and a one-line description.
+- Non-functional requirements as NFR-1, NFR-2, ... each with a short name and a concrete target where one was given, for example 'under 200ms p95 latency' or 'no new managed services'. Vague NFRs are useless later — push for a number or a hard boundary where the developer gave one.
+- The explicit out-of-scope list.
+
+Ask the developer to confirm before you move on to looking at the existing system."
+    ]
+
+    confirm_requirements [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Are these the right functional and non-functional requirements to design against?"
+    ]
+
+    explore_system [
+        label="Understand the Existing System",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="Phase 4 — Understand the Existing System. Now you may inspect the codebase. Understand the current state before talking about the future.
+
+Read the code yourself first, then fill remaining gaps with targeted questions. Establish:
+- Is this building something new from scratch, or extending an existing system?
+- If existing: the relevant stack — language, framework, database, hosting and infrastructure.
+- What the current data model looks like for anything related to this change.
+- What integrations or services are already in use.
+- Roughly how many users, and what scale.
+- Known constraints from the existing system — things we cannot change, and things we must stay compatible with.
+
+Report what you found, then ask only about what the code could not tell you. You may put a few tightly related questions in one message, but keep it focused. Aim to understand the landscape, not write a biography."
+    ]
+
+    ask_existing [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 4 — Fill in what I couldn't learn from the code: anything wrong in my read of the current system, plus scale, integrations, and any constraints I must design around (things we cannot change or must stay compatible with)."
+    ]
+
+    design_solution [
+        label="Solution Design and Key Decisions",
+        thread_id="plan-arch",
+        fidelity="full",
+        max_visits=4,
+        prompt="Phase 5 — Solution Design and Key Decisions. This is the most collaborative phase. Walk through the solution piece by piece. For each significant piece:
+
+1. Propose an approach — describe it briefly and explain why it fits the requirements.
+2. Name the alternatives — 2 to 4 options where relevant.
+3. State the trade-offs — quick pros and cons for each option, specific about which requirements it helps or hurts. Tie them back to FRs and NFRs by number and name. Do not say 'this is simpler'; say 'this is simpler at the cost of FR-4 (conflict handling), which we'd need to address separately'.
+4. Make a recommendation — say what you would pick and why.
+5. Ask for their input — 'Does this feel right? Is there a constraint I'm missing that changes the calculus?'
+
+Decisions worth surfacing include data storage (database choice, schema design), API design (REST vs GraphQL vs RPC, sync vs async), transport (WebSockets vs SSE vs polling vs webhooks), sync and consistency strategy (strong vs eventual, conflict resolution), infrastructure (managed vs self-hosted, new service vs extending an existing one), meaningful library choices, auth strategy, and caching strategy.
+
+Not every decision needs surfacing — only the ones where the choice meaningfully affects the architecture, the requirements, or the team's future options. If the developer has already ruled something out, for example 'no new infrastructure', stop proposing options that require it.
+
+If you are revisiting this step after the developer pushed back, address their objection directly rather than re-presenting the same recommendation."
+    ]
+
+    ask_design [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 5 — What's your call on these decisions? Tell me which options you want, where my recommendation is wrong, and any constraint I'm missing that changes the calculus."
+    ]
+
+    record_decisions [
+        label="Record the Decisions",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="The developer's input on the solution design is in context under human.gate.text.
+
+For every decision discussed, record: the options considered, their pros and cons, which requirements each option helps or hurts (by FR/NFR number and name), your recommendation, and the final agreed decision. Mark clearly which option was selected.
+
+If any decision is still open — the developer deferred, or their answer raised a new question — say so explicitly and name what still needs deciding. Do not silently pick for them.
+
+Then present the decision log back and ask whether every major component of the solution has now been covered."
+    ]
+
+    design_signoff [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Have we covered all the major solution components, or is there more to work through?"
+    ]
+
+    impl_plan [
+        label="Basic Implementation Plan",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="Phase 6 — Basic Implementation Plan. Do not ask more questions first. Derive a concrete sequenced plan from Phase 5, present it, then ask for confirmation.
+
+Keep this at the phase level: sequencing, goals, dependencies, and concrete steps. Do NOT go into file-level detail, specific commands, or commit-sized breakdowns — that is what /facto:plan-implementation is for. This plan should give a developer a clear picture of the order of work and why, not a step-by-step execution guide.
+
+Structure it as 2 to 5 phases depending on scope. For each phase: a short name, the goal (what is true after this phase that was not before), the concrete steps a developer would actually do, and any hard dependencies on prior phases or external factors.
+
+Sequencing principles:
+- Foundation before surface — backend schema and API changes before the frontend that depends on them.
+- Risk first — tackle the most uncertain or highest-stakes pieces early so problems surface before too much is built on top.
+- Ship incrementally where possible — prefer an ordering where intermediate phases can be deployed and tested independently, not just 'it all works at the end'.
+- Call out external dependencies explicitly — if a phase cannot start until something outside this team's control is done, say so.
+
+After presenting, ask: 'Does this sequencing make sense? Are there any constraints on ordering I'm missing — other teams, upcoming releases, things that need to ship together?'"
+    ]
+
+    ask_sequencing [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 6 — Does this sequencing make sense? Are there any constraints on ordering I'm missing — other teams, upcoming releases, things that need to ship together?"
+    ]
+
+    incorporate_sequencing [
+        label="Incorporate Sequencing Feedback",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="The developer's sequencing feedback is in context under human.gate.text. Incorporate every ordering constraint they named into the phase plan, and state the revised sequence back in one short message. If a constraint they raised makes a phase impossible as written, restructure the phases rather than adding a caveat. Then continue — no further confirmation needed at this step."
+    ]
+
+    resolve_task_dir [
+        shape=parallelogram,
+        label="Resolve Task Directory",
+        script="set -e; TASK_DIR=\"$(facto-helper.sh task-dir)\"; mkdir -p \"$TASK_DIR\"; echo \"$TASK_DIR\""
+    ]
+
+    ask_slug [
+        shape=hexagon,
+        question_type="freeform",
+        label="I could not resolve the task directory automatically — you are probably not on a task worktree or feature branch. Give me a short kebab-case slug to use, for example 'realtime-sync-transport'."
+    ]
+
+    make_task_dir [
+        label="Create Task Directory From Slug",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="The automatic task-directory lookup failed. The developer's kebab-case slug is in context under human.gate.text.
+
+Run `TASK_DIR=\"$(facto-helper.sh task-dir \"<slug>\")\"` with that slug, then `mkdir -p \"$TASK_DIR\"`. Report the resulting absolute path. All planning docs for one task live together in `facto-tasks/<task-slug>/`, so this must be the shared per-task directory, not an ad-hoc location. Every architecture decision goes in the task directory — no path confirmation is needed."
+    ]
+
+    generate_doc [
+        label="Generate the Architecture Document",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="Phase 8 — Generate the document in one pass. Do not ask any more questions. Write it directly to `<TASK_DIR>/architecture.md`, using the task directory resolved in the previous step. The created date lives in the document header, not the filename.
+
+Follow the skill's template structure at plugins/facto/skills/plan-architecture/template.md, and match the level of detail and writing style in plugins/facto/skills/plan-architecture/examples/example-output.md. Read both files before writing. The structure is:
+
+1. Summary — 2 to 4 sentences: the problem or opportunity, why it matters, and the proposed solution at a high level.
+2. Existing System — stack, data models, infrastructure, integrations and rough scale relevant to this work. If greenfield, say so and describe the blank-slate context instead.
+3. Requirements — 3.1 Functional Requirements as FR-N with short names, 3.2 Non-Functional Requirements as NFR-N with concrete targets where relevant.
+4. Solution — one subsection per component or layer, each specific enough that a developer could start building from the description, each ending with an 'Addresses:' line listing the FRs and NFRs it satisfies.
+5. Basic Implementation Plan — the phase-level plan from Phase 6, with the note that it must be expanded by /facto:plan-implementation before execution. No file-level detail or commit-sized breakdowns.
+Appendix: Key Decisions — one entry per decision, with what was needed, each option's pros and cons, the selected option marked, and a paragraph explaining the choice that references specific requirements by number.
+
+Then tell the developer the absolute path you wrote it to."
+    ]
+
+    review_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        max_visits=6,
+        review_target="generate_doc",
+        label="I've written the architecture plan to the task directory. Does the overall approach make sense? Are there decisions you'd revisit, requirements missing, or parts of the implementation plan that seem wrong?"
+    ]
+
+    collect_feedback [
+        shape=hexagon,
+        question_type="freeform",
+        label="Tell me what to change — decisions to revisit, missing or wrong requirements, solution sections that don't hold up, or sequencing that's off."
+    ]
+
+    revise_doc [
+        label="Revise the Architecture Document",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="Phase 9. The developer's feedback is in context under human.gate.text.
+
+Address every piece of it. Update `architecture.md` in place by editing the file — do not rewrite it from scratch, and do not drop sections the developer did not comment on.
+
+If the feedback reopens an earlier phase — a requirement that was wrong, a decision that should be reversed, a sequencing constraint that changes the phases — rework that section properly, and keep the Key Decisions appendix consistent with the change. A reversed decision means the appendix entry's selected option moves, with the reasoning updated to match, not a new entry contradicting the old one.
+
+Then tell the developer exactly what changed, item by item, and ask for feedback again."
+    ]
+
+    commit_doc [
+        label="Commit the Architecture Document",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="The developer has explicitly accepted the document. Planning docs are always committed.
+
+Stage only the architecture file — never `git add -A`:
+
+    git add \"$TASK_DIR/architecture.md\"
+    git commit -m \"docs: add architecture decision for <task-slug>\"
+
+Substitute the real task directory and task slug. If the commit fails, report the exact error rather than working around it with a broader stage."
+    ]
+
+    next_steps [
+        shape=tab,
+        label="Next Steps",
+        thread_id="plan-arch",
+        fidelity="full",
+        prompt="Phase 10 — Next Steps. Offer a natural handoff into the rest of the facto pipeline, in a few lines. Give the absolute path of the committed architecture document, then:
+
+'The architecture plan is ready. When you're ready to move forward, you can run /facto:plan-implementation and point it at this document — it'll expand the high-level implementation phases into commit-sized steps with file-level detail, validation commands, and commit messages.'
+
+If the document is comprehensive enough to serve as input to /facto:plan-implementation — it has clear requirements and an implementation plan section — say so explicitly. If instead there are gaps that /facto:plan-product would fill first, for example the architecture is technical but the product requirements have never been defined, suggest that path instead and say which gap you mean. Do not start either skill here."
+    ]
+
+    start -> brain_dump
+    brain_dump -> absorb_brain_dump [freeform=true]
+    absorb_brain_dump -> ask_motivation
+    ask_motivation -> propose_functional [freeform=true]
+
+    propose_functional -> ask_functional
+    ask_functional -> nfr_reliability [freeform=true]
+    nfr_reliability -> nfr_performance [freeform=true]
+    nfr_performance -> nfr_maintainability [freeform=true]
+    nfr_maintainability -> nfr_scalability [freeform=true]
+    nfr_scalability -> nfr_security [freeform=true]
+    nfr_security -> summarize_requirements [freeform=true]
+
+    summarize_requirements -> confirm_requirements
+    confirm_requirements -> explore_system [label="[Y] Yes, design against these"]
+    confirm_requirements -> propose_functional [label="[N] No, rework the requirements"]
+
+    explore_system -> ask_existing
+    ask_existing -> design_solution [freeform=true]
+
+    design_solution -> ask_design
+    ask_design -> record_decisions [freeform=true]
+    record_decisions -> design_signoff
+
+    design_signoff -> impl_plan [label="[A] All covered, plan the work"]
+    design_signoff -> design_solution [label="[M] More to work through"]
+
+    impl_plan -> ask_sequencing
+    ask_sequencing -> incorporate_sequencing [freeform=true]
+    incorporate_sequencing -> resolve_task_dir
+
+    resolve_task_dir -> generate_doc [condition="outcome=succeeded"]
+    resolve_task_dir -> ask_slug
+
+    ask_slug -> make_task_dir [freeform=true]
+    make_task_dir -> generate_doc
+
+    generate_doc -> review_gate
+    review_gate -> commit_doc [label="[A] Accept the document"]
+    review_gate -> collect_feedback [label="[F] I have feedback"]
+
+    collect_feedback -> revise_doc [freeform=true]
+    revise_doc -> review_gate
+
+    commit_doc -> next_steps
+    next_steps -> exit
+}

@@ -1,0 +1,61 @@
+digraph FactoRefDesignMock {
+    graph [goal="Produce a Figma-style design-mock HTML file from the Facto template: create a per-feature working copy, fill in its tokens, frames and bands, then serve, inspect and prove it"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    working_copy [
+        label="Create Working Copy",
+        prompt="Create the per-feature working copy of the design-mock template. The calling context supplies the destination directory <dest-dir>; treat it as an opaque location and do not decide where it goes yourself. Steps: (1) copy the Facto canvas template at [facto] claude/skills/ref-design-mock/template-task-spec.html to <dest-dir>/design-mock.html — the filename is fixed, with no date in it; (2) put any fonts or images the design references in <dest-dir>/assets/ and reference them relatively as assets/... so they resolve when that directory is served over HTTP — CDN-hosted webfonts do not need bundling because Facto is online-only; (3) from this point on edit only the copy, because the Facto template itself is read-only. The template fixes the structure — the bands, the frame kit, the token vocabulary — so every mock reads as the same product. What goes inside the frames is the caller's decision, not this workflow's. Task: {{ goal }}"
+    ]
+
+    fill_tokens [
+        label="Fill In Design Tokens",
+        prompt="Fill in the design tokens in the working copy at <dest-dir>/design-mock.html. Its <style> element has a :root token-placeholder block, a set of .type-* utility classes, and a .t-dark override block. Replace the placeholder values with the product's real tokens from [product] docs/design/<surface>/design-system.md — colors, type scale, spacing, radius — and fill in the dark-theme overrides. Build every frame from these token vars, using var(--color-...) and the .type-... classes rather than raw hex values or arbitrary px numbers; that is what keeps the mock consistent and faithful to what the target platform will actually implement. If the design system has no structured token section, derive the values from its style-guide prose and note explicitly which ones you inferred."
+    ]
+
+    fill_frames [
+        label="Fill In Frames And Bands",
+        prompt="Fill in the frames and bands. The board is a vertical stack of bands (rows of frames); inside each frame the dashed .design-slot is the region you replace with real design — replace its contents only, never the device chrome. The template documents itself at the point where you fill it, so open the copy and follow the inline comments: each band's header comment says what that band is for and when to duplicate or remove it, the top-of-file comment lists which frame type goes with which platform, and the Appendix band shows every frame type — delete the Appendix band when you are done. Hold three things across the whole file. Scope: design only the screens the feature touches, never the whole app. Implementability: do not use presentation the target platform cannot build, for example a CSS effect Jetpack Compose cannot reproduce; the mock must be buildable as shown. Completeness: every flow the caller supplied gets its own band running from entry to completion — a flow with no band is a gap, not a simplification. Treat the caller's flow list as given, the same way <dest-dir> is given. Within a flow band, every step is a full-screen frame, an overlay step is that same full screen with the overlay drawn over it, and each connector between steps carries the action that triggers the transition; the band's header comment in the template has the full detail on step granularity and duplication."
+    ]
+
+    serve_inspect [
+        label="Serve And Inspect",
+        prompt="Serve the file and confirm it renders. A file:// URL will not work — it blocks bundled assets and breaks the browser tools — so serve over HTTP. (1) Run python3 -m http.server on a free port from <dest-dir>, so that assets/ resolves under the server root. (2) Playwright browser_navigate to http://localhost:<port>/design-mock.html. (3) browser_take_screenshot of the canvas, and browser_evaluate to read the board transform or check layout. (4) Confirm it actually rendered: frames visible, not a blank or error page, and not fit to near-0 percent. The canvas runs a second fit() 250 ms after load to catch fonts and images that settle late, so take the screenshot after that has fired or the board can look near-invisible. Stop the server when you are done."
+    ]
+
+    device_profile [
+        label="Match A Real Running App",
+        prompt="Apply this stage only when the mock must match an app that already exists — standing up specs from current reality, or checking implementation drift. Measure values from the running app rather than estimating them, so the mock matches it rather than approximates it. DEVICE PROFILE: capture the surface's pixel resolution and density, derive the logical size and the device scale factor (dsf), set the frame to that logical size, and adopt 1 CSS px == 1 dp/pt so measured positions map directly into the mock; this replaces the template's default frame dimensions and its generic status bar. Android: adb shell wm size for px and adb shell wm density for dpi, then dsf = dpi/160 and logical = px / dsf. iOS: point size times scale (@2x or @3x), dsf = scale. Web: CSS px directly, dsf = 1 or the device-pixel-ratio you target. Size the frame by setting its CSS variable to the measured logical viewport — --screen-width and --screen-height on a .phone-screen, --frame-width on a .browser. .phone-screen, .browser and .browser-page are template-owned class names: set the variable, never redeclare the class in a separate stylesheet, because the template's frame rules are inlined after any linked CSS and a redeclared width silently loses, which can clip the page. GEOMETRY: read element bounds from the live accessibility or DOM tree, not from the screenshot — adb shell uiautomator dump on Android (Compose exposes semantics bounds in px, divide by dsf for dp), the view or accessibility hierarchy on iOS, getBoundingClientRect() on web. COLORS: take the surface's tokens from source — design-system.md if it has one, otherwise the theme file the code actually uses such as globals.css or a platform theme — and sample the screenshot at known points to confirm. Sampling catches what reading source misses: elevation tints and alpha composites, where a 50-percent-alpha foreground over a variant surface renders as neither token's hex. When the surface has no token reference at all, the sampled values are the source of truth. FONTS: copy the app's actual bundled font files into assets/ and @font-face them, because a substitute webfont changes glyph metrics and shifts alignment. OS CHROME IS NOT THE APP: reproduce the status bar and the gesture or home indicator approximately, and treat them as out of scope when judging fidelity."
+    ]
+
+    shell_harness [
+        label="Shell Plus Per-State Harnesses",
+        prompt="Structure the device-accurate spec as two layers, so the pixels a human reviews are the exact pixels proven against the app. PER-STATE HARNESS: one standalone page per state. Size it to the logical viewport by setting html and body to the measured logical width and height in px, with 1 CSS px = 1 dp/pt, and draw only the app's own screen content — the surface's tokens in :root taken from its design system or its theme source (or from the sampled values when it has none), the app's bundled fonts via @font-face, and every element absolutely positioned from the geometry measured in the previous stage. No OS chrome on this page. It is both what you screenshot for the diff and what the shell embeds, so the two can never drift. SPEC SHELL: a canvas with a meta-card plus a states band, which the caller supplies. Each state is a device frame whose screen embeds its harness with an <iframe>; draw the platform's status bar and home indicator cosmetically on top with pointer-events:none, and keep them out of the diff. The caller fixes the harness filenames, the iframe src values, and where the fonts live; everything else here is yours to decide."
+    ]
+
+    render_diff [
+        label="Render At Device Scale And Diff",
+        max_visits=4,
+        prompt="A close-looking mock is not proof. Render the mock at the device's exact pixel resolution and diff it against the live screenshot. (1) RENDER AT DSF: headless Chrome with --headless=new --force-device-scale-factor=<dsf> --window-size=<logicalW>,<logicalH> --virtual-time-budget=4000 --screenshot=mock.png <url>, or a Playwright context with a matching deviceScaleFactor. Screenshot the bare harness page for the state, not the spec shell, so the diff covers only the design, then crop to the device resolution. Because the shell embeds that same harness, the reviewed pixels and the proven pixels stay identical. (2) DIFF: compare the two same-size PNGs overall and per region or band — PIL ImageChops.difference plus histogram() works with no numpy — and also measure the left edge, right edge and width of key elements, because sub-pixel drift accumulates across a row and is hard to catch by eye. ACCEPTANCE BAR: a designer and an engineer looking at both agree they match — no visible structural, color or type mismatch in the app's own content, with the remaining diff being anti-aliasing and OS chrome. End this stage as succeeded only when the diff is under that bar; end it as failed when it is not, so the workflow revises the mock and re-renders."
+    ]
+
+    revise [
+        label="Revise The Mock",
+        prompt="The diff is not yet under the acceptance bar. Revise the mock. The output file is self-contained, so editing it never breaks anything to build: make the changes in place with Edit — there is no need to regenerate from the template — then re-serve to re-inspect. Work from the specific per-region diffs and edge measurements produced by the previous render, and fix the largest structural, color and type mismatches first before chasing small ones. Do not edit the shared [facto] template-task-spec.html itself; the rules for editing that file — keeping it project-agnostic, its load-bearing CSS, the fit() timing — live in its own top-of-file comment."
+    ]
+
+    record_divergences [
+        shape=tab,
+        label="Record Accepted Divergences",
+        prompt="Write the closing note for this design mock. Record the accepted divergences rather than implying the whole screen matches perfectly: OS chrome; data differences, such as the mock's item count versus the live database's; and text-rasterization differences between the browser and the native toolkit even with identical fonts. Also state where the mock file and its harnesses live, which tokens were inferred from style-guide prose rather than read from a structured design system, and any flow or state that was not drawn. Keep it factual and short."
+    ]
+
+    start -> working_copy
+    working_copy -> fill_tokens -> fill_frames -> serve_inspect -> device_profile -> shell_harness -> render_diff
+    render_diff -> record_divergences [label="Match", condition="outcome=succeeded"]
+    render_diff -> revise [label="Iterate"]
+    revise -> render_diff
+    record_divergences -> exit
+}

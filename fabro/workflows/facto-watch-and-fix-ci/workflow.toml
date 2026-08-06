@@ -1,0 +1,10 @@
+_version = 1
+
+[workflow]
+graph = "workflow.fabro"
+
+# Mirrors the graph goal so `fabro workflow list` shows a description.
+# Goal precedence is CLI --goal > [run].goal > graph attribute, so this must
+# stay identical to the graph's goal= attribute.
+[run]
+goal = "Make CI pass on the current branch's open pull request: watch the checks, and for each failure pull its logs, reproduce it locally by re-running that check's own command, fix the root cause, push, and loop until every check is green"
