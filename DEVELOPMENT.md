@@ -196,21 +196,23 @@ fi-task-test.sh
 
 ### 4.2 - Running the tests
 
-The shell scripts under `plugins/*/bin/` and two static files under
-`plugins/*/skills/` have a small homemade test suite — five self-contained
+The shell scripts under `plugins/*/bin/` and three static files under
+`plugins/*/skills/` have a small homemade test suite — seven self-contained
 `*.test.sh` files under `plugins/*/bin/tests/` and `plugins/*/skills/*/tests/`,
 no test framework:
 
 | Suite | Covers |
 |---|---|
-| `plugins/facto/bin/tests/task-start.test.sh` | `task-start.sh` argument parsing — issue detection, branch-name derivation, the `UNKNOWN-` no-issue convention |
+| `plugins/facto/bin/tests/facto-helper.test.sh` | `facto-helper.sh` slug normalization, `tasks_dir` resolution, and issue-identifier extraction for both trackers |
+| `plugins/facto/bin/tests/task-start.test.sh` | `task-start.sh` argument parsing — issue detection, branch-name derivation, the `UNKNOWN-` no-issue convention, `--branch`, and the Linear `--issue` form |
 | `plugins/facto/bin/tests/task-list.test.sh` | `task-list.sh` worktree-listing output (snapshot) |
 | `plugins/facto-dev/bin/tests/fi-task-test.test.sh` | `fi-task-test.sh` install-symlink re-pointing (link / reset / preconditions / Facto guard) |
 | `plugins/facto/skills/ref-design-mock/tests/template-task-spec.test.sh` | design-mock task-spec template structure — per-flow bands, connector labels, project-agnostic tokens |
 | `plugins/facto/skills/review-loop-code/tests/skill-structure.test.sh` | review-loop-code severity gate — terminal-cycle rule, terminal-mode fix judgment, retained cycle cap |
+| `plugins/facto/skills/observe/tests/skill-structure.test.sh` | observe's Linear guard — present, worded as a hard stop, and placed before the first GitHub-only call |
 
 Each suite is self-contained and safe to run from anywhere: the script suites set
-up their own disposable git repos and assert against them; the two structural
+up their own disposable git repos and assert against them; the three structural
 suites only read their target files. None of them leave anything behind. The
 `fi-task-test` suite is sandboxed so it never disturbs your real
 `~/.claude/skills/` install while it runs.

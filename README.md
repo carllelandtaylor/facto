@@ -34,7 +34,7 @@ Many aspects are working well for me, but there's a lot that can be improved sti
 1. **Implementation loops that build and verify before completing** - so you don't need to babysit execution
 1. **Clear, consistent, reviewable PRs** - so you can verify code quality and actually understand what your agents are building
 1. **Worktree management with customizable setup/teardown** - for parallelizing local agents with isolated databases, servers, ports, etc.
-1. **GitHub Issues & Projects integration** - to let you file rich, actionable issues with just a few words, and to empower agents to automatically pick up work and track their progress
+1. **Issue tracker integration — GitHub Issues & Projects, or Linear** - to let you file rich, actionable issues with just a few words, and to empower agents to automatically pick up work and track their progress
 1. **Built as composable skills to be used within Claude Code** - so you can pick and choose what to use when, and integrate with other systems
 1. ... and more
 
@@ -98,7 +98,7 @@ Because it's a symlink, edits in the repo go live everywhere immediately. Start 
 
 Open Claude Code in the project you're building and run `/facto:setup-facto`. This will:
 1. add worktree management commands (`task-start`, `task-list`, `task-end`) to your shell profile
-1. optionally set up integration with any GitHub Issues + Project tracking you use, and
+1. optionally wire up your issue tracker — GitHub Issues + a Project board, or Linear, and
 1. optionally help you set up custom worktree setup and teardown hooks to ensure each worktree has a fresh environment and doesn't collide with the others.
 
 **Setup is now complete!**
@@ -125,10 +125,56 @@ Facto makes it easy to work on multiple unrelated tasks in parallel on one machi
 These are shell scripts that get added to your `PATH` during `/facto:setup-facto`:
 
 - `task-start` — creates a new branch and worktree, and runs your project's optional custom worktree setup script.
-    - `task-start --issue <number|url>` — creates the branch and worktree name based on the issue's contents, which also enables facto skills to automatically update the issue's status as they work.
+    - `task-start --issue <number|url>` — creates the branch and worktree name based on the issue's contents, which also enables facto skills to automatically update the issue's status as they work. On a Linear repo the form is `task-start --issue <IDENTIFIER> <description words>` (e.g. `--issue SIO-9 create app switcher`), because Linear cannot be read from a shell script.
+    - `task-start --branch <branch-name>` — uses that branch name verbatim, and recovers the issue identifier from it. This is the normal way to start a Linear task: copy the branch name from the Linear issue and paste it.
     - `task-start <conversational description>` — creates the branch and worktree name based on your description.
 - `task-list` — lists all active task worktrees with their path and branch.
 - `task-end` — checks for uncommitted changes and resolves with you how to handle them, removes the worktree, and deletes the branch if its PR has merged.
+
+#### Choosing an issue tracker
+
+Facto works against **one tracker per repo**, chosen by `tracker.type` in your project's `.facto/settings.json`. `/facto:setup-facto` writes this for you; the shapes are shown here for reference. Pull requests are GitHub PRs either way — only issue tracking varies.
+
+**GitHub Issues + a Project board** (`"type": "github-issues"`) — lifecycle state lives in the Project's single-select `Status` field:
+
+```json
+{
+  "tracker": {
+    "type": "github-issues",
+    "repo": "owner/repo",
+    "project": { "owner": "owner", "number": 1, "name": "Roadmap" },
+    "status_field": "Status",
+    "status_values": { "backlog": "Backlog", "in_progress": "In progress", "in_review": "In review", "in_test": "In test", "done": "Done" },
+    "branch_issue_pattern": "^[a-z]+/(?<issue>[0-9]+)-",
+    "pr_link_format": "Resolves #{issue}"
+  }
+}
+```
+
+**Linear** (`"type": "linear"`) — lifecycle state lives in the team's workflow states, so there is no project board or status field:
+
+```json
+{
+  "tracker": {
+    "type": "linear",
+    "workspace": "your-workspace",
+    "team": "Your Team",
+    "team_key": "TEAM",
+    "branch_prefix": "your-linear-username",
+    "status_values": { "backlog": "Backlog", "in_progress": "In Progress", "in_review": "In Review", "in_test": "Done", "done": "Done" },
+    "promote_from_status_types": ["backlog", "unstarted"],
+    "branch_issue_pattern": "^[^/]+/(?<issue>[a-z][a-z0-9]*-[0-9]+)-",
+    "pr_link_format": "Fixes {issue}"
+  }
+}
+```
+
+Two things to know before choosing Linear:
+
+- **Linear is reached through its MCP server**, which only agents can call. Add it with `claude mcp add --transport http --scope project linear https://mcp.linear.app/mcp` and authenticate via `/mcp`. Shell scripts cannot reach it, which is why `task-start` takes the issue identity from you rather than fetching it, and does not set the issue's state — the first skill to pick the task up does that.
+- **`/facto:observe` is GitHub-only** in this release. It stops with an error on a Linear repo rather than running partially.
+
+Facto has five lifecycle states, and your tracker may not have a counterpart for each. `status_values` maps Facto's keys onto whatever states actually exist, and more than one key may point at the same state — no Linear team has an equivalent of Facto's *In test*, for instance. `/facto:setup-facto` enumerates your team's real states and asks how to map the gaps.
 
 #### Customizing worktree setup/teardown for isolation and resource management
 

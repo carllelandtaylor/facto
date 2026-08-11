@@ -58,19 +58,35 @@ chmod +x "$_STUB_BIN/gh"
 
 cat > "$_STUB_BIN/facto-helper.sh" <<'STUB'
 #!/bin/bash
-# Stub facto-helper.sh for task-start.sh tests
+# Stub facto-helper.sh for task-start.sh tests.
+#
+# Which tracker it reports is switchable per case via _TS_TEST_TRACKER, so the
+# GitHub and Linear cases share one stub. Unset means github-issues, matching
+# the script's own default.
 subcmd="$1"
+tracker="${_TS_TEST_TRACKER:-github-issues}"
 if [[ "$subcmd" == "tracker.exists" ]]; then
   exit 0
 fi
 if [[ "$subcmd" == "tracker.field" ]]; then
   key="$2"
+  if [[ "$tracker" == "linear" ]]; then
+    case "$key" in
+      type)                 echo "linear" ;;
+      branch_prefix)        echo "carllelandtaylor" ;;
+      branch_issue_pattern) echo '^[^/]+/(?<issue>[a-z][a-z0-9]*-[0-9]+)-' ;;
+      *) echo "" ;;
+    esac
+    exit 0
+  fi
   case "$key" in
+    type)                      echo "github-issues" ;;
     repo)                      echo "owner/repo" ;;
     project.owner)             echo "owner" ;;
     project.number)            echo "1" ;;
     status_field)              echo "Status" ;;
     status_values.in_progress) echo "In progress" ;;
+    branch_issue_pattern)      echo '^[a-z]+/(?<issue>[0-9]+)-' ;;
     *) echo "" ;;
   esac
   exit 0
@@ -82,11 +98,14 @@ chmod +x "$_STUB_BIN/facto-helper.sh"
 # Prepend the stub bin to PATH for child processes
 export PATH="$_STUB_BIN:$PATH"
 
-# Helper: clean up worktree + branch created by a test case
+# Helper: clean up worktree + branch created by a test case.
+# The worktree slug is normally the branch minus its leading segment, but the
+# UNKNOWN- convention makes them differ, so it can be passed explicitly. Getting
+# this wrong leaves a checked-out branch that `git branch -D` then refuses to
+# delete, so the override is load-bearing rather than cosmetic.
 _cleanup() {
   local branch="$1"
-  local slug
-  slug="${branch#*/}"   # strip prefix/
+  local slug="${2:-${branch#*/}}"
   local wt_dir="$_TMP/.facto/worktrees/$slug"
   git -C "$_TMP" worktree remove --force "$wt_dir" 2>/dev/null || true
   git -C "$_TMP" branch -D "$branch" 2>/dev/null || true
@@ -261,6 +280,232 @@ if echo "$_out" | grep -qi "Detected issue"; then
 fi
 if [[ -f "$_GH_SENTINEL" ]]; then
   echo "FAIL: no_detection_when_no_issue_keyword — gh was unexpectedly called" >&2
+  exit 1
+fi
+_cleanup "$_branch"
+
+# =======================================================================
+# Linear tracker cases
+#
+# On a Linear repo task-start never reaches the tracker: Linear is an MCP
+# server and bash cannot call it. Every case below therefore asserts that
+# the gh stub was NOT invoked, in addition to the branch it produced.
+# =======================================================================
+
+export _TS_TEST_TRACKER="linear"
+
+# -----------------------------------------------------------------------
+# Case: linear_branch_flag
+# `--branch carllelandtaylor/sio-9-create-app-switcher` → that branch
+# verbatim, slug sio-9-create-app-switcher (leading segment stripped, no
+# UNKNOWN- prefix since the identifier matches). gh NOT called.
+# -----------------------------------------------------------------------
+echo "  testing: linear_branch_flag"
+rm -f "$_GH_SENTINEL"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --branch carllelandtaylor/sio-9-create-app-switcher 2>&1)"
+_branch="carllelandtaylor/sio-9-create-app-switcher"
+if ! git -C "$_TMP" branch --list | grep -qF "$_branch"; then
+  echo "FAIL: linear_branch_flag — branch '$_branch' not found" >&2
+  git -C "$_TMP" branch --list >&2
+  exit 1
+fi
+if [[ ! -d "$_TMP/.facto/worktrees/sio-9-create-app-switcher" ]]; then
+  echo "FAIL: linear_branch_flag — worktree dir 'sio-9-create-app-switcher' not found" >&2
+  exit 1
+fi
+if [[ -f "$_GH_SENTINEL" ]]; then
+  echo "FAIL: linear_branch_flag — gh was unexpectedly called" >&2
+  exit 1
+fi
+# task.json must carry the identifier as a JSON *string*, uppercased.
+_task_json="$(cd "$_TMP/.facto/worktrees/sio-9-create-app-switcher" && git rev-parse --absolute-git-dir)/task.json"
+if [[ ! -f "$_task_json" ]]; then
+  echo "FAIL: linear_branch_flag — task.json not written at $_task_json" >&2
+  exit 1
+fi
+if [[ "$(jq -r '.issue_number' "$_task_json")" != "SIO-9" ]]; then
+  echo "FAIL: linear_branch_flag — expected issue_number 'SIO-9', got '$(jq -r '.issue_number' "$_task_json")'" >&2
+  exit 1
+fi
+if [[ "$(jq -r '.issue_number | type' "$_task_json")" != "string" ]]; then
+  echo "FAIL: linear_branch_flag — issue_number must be a JSON string, got $(jq -r '.issue_number | type' "$_task_json")" >&2
+  exit 1
+fi
+_cleanup "$_branch"
+
+# -----------------------------------------------------------------------
+# Case: linear_branch_flag_no_match
+# A branch name that matches no identifier is not an error — it warns and
+# starts a no-issue task, so the slug takes the UNKNOWN- prefix.
+# -----------------------------------------------------------------------
+echo "  testing: linear_branch_flag_no_match"
+rm -f "$_GH_SENTINEL"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --branch scratch/poke-at-something 2>&1)"
+_branch="scratch/poke-at-something"
+if ! git -C "$_TMP" branch --list | grep -qF "$_branch"; then
+  echo "FAIL: linear_branch_flag_no_match — branch '$_branch' not found" >&2
+  exit 1
+fi
+if [[ ! -d "$_TMP/.facto/worktrees/UNKNOWN-poke-at-something" ]]; then
+  echo "FAIL: linear_branch_flag_no_match — expected UNKNOWN- worktree dir" >&2
+  ls "$_TMP/.facto/worktrees" >&2
+  exit 1
+fi
+if ! echo "$_out" | grep -qi "does not match"; then
+  echo "FAIL: linear_branch_flag_no_match — expected a warning, got: $_out" >&2
+  exit 1
+fi
+_cleanup "$_branch" "UNKNOWN-poke-at-something"
+
+# -----------------------------------------------------------------------
+# Case: linear_branch_flag_multi_segment
+# Linear's branch format is workspace-configurable and may carry more than one
+# leading segment. The default pattern allows exactly one, so such a name
+# recovers no identifier and correctly falls back to a no-issue task. What is
+# asserted here is that the resulting slug stays a FLAT directory name: taking
+# only the last segment keeps it equal to the worktree basename, which is what
+# facto-helper.sh task-slug reads back. Stripping just the first segment would
+# yield "UNKNOWN-feature/sio-12-nested-name" and nest a directory whose
+# basename no longer matches the slug.
+# -----------------------------------------------------------------------
+echo "  testing: linear_branch_flag_multi_segment"
+rm -f "$_GH_SENTINEL"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --branch carllelandtaylor/feature/sio-12-nested-name 2>&1)"
+_branch="carllelandtaylor/feature/sio-12-nested-name"
+if ! git -C "$_TMP" branch --list | grep -qF "$_branch"; then
+  echo "FAIL: linear_branch_flag_multi_segment — branch '$_branch' not found" >&2
+  exit 1
+fi
+if [[ ! -d "$_TMP/.facto/worktrees/UNKNOWN-sio-12-nested-name" ]]; then
+  echo "FAIL: linear_branch_flag_multi_segment — expected flat worktree dir 'UNKNOWN-sio-12-nested-name'" >&2
+  ls -R "$_TMP/.facto/worktrees" >&2
+  exit 1
+fi
+if [[ -d "$_TMP/.facto/worktrees/UNKNOWN-feature" ]]; then
+  echo "FAIL: linear_branch_flag_multi_segment — slug nested a directory (UNKNOWN-feature/...)" >&2
+  exit 1
+fi
+_cleanup "$_branch" "UNKNOWN-sio-12-nested-name"
+
+# -----------------------------------------------------------------------
+# Case: linear_issue_flag
+# `--issue SIO-9 create app switcher` rebuilds the same branch name Linear
+# would generate, from branch_prefix + lowercased identifier + slug.
+# -----------------------------------------------------------------------
+echo "  testing: linear_issue_flag"
+rm -f "$_GH_SENTINEL"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --issue SIO-9 create app switcher 2>&1)"
+_branch="carllelandtaylor/sio-9-create-app-switcher"
+if ! git -C "$_TMP" branch --list | grep -qF "$_branch"; then
+  echo "FAIL: linear_issue_flag — branch '$_branch' not found" >&2
+  git -C "$_TMP" branch --list >&2
+  exit 1
+fi
+if [[ -f "$_GH_SENTINEL" ]]; then
+  echo "FAIL: linear_issue_flag — gh was unexpectedly called" >&2
+  exit 1
+fi
+_cleanup "$_branch"
+
+# -----------------------------------------------------------------------
+# Case: linear_issue_flag_lowercase
+# The identifier is uppercased before use, so a lowercased one produces the
+# identical branch.
+# -----------------------------------------------------------------------
+echo "  testing: linear_issue_flag_lowercase"
+rm -f "$_GH_SENTINEL"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --issue sio-9 create app switcher 2>&1)"
+_branch="carllelandtaylor/sio-9-create-app-switcher"
+if ! git -C "$_TMP" branch --list | grep -qF "$_branch"; then
+  echo "FAIL: linear_issue_flag_lowercase — branch '$_branch' not found" >&2
+  exit 1
+fi
+_cleanup "$_branch"
+
+# -----------------------------------------------------------------------
+# Case: linear_issue_flag_needs_words
+# Without a fetch there is no title, so description words are required.
+# -----------------------------------------------------------------------
+echo "  testing: linear_issue_flag_needs_words"
+_branches_before="$(git -C "$_TMP" branch --list | sort)"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --issue SIO-9 2>&1 || true)"
+_branches_after="$(git -C "$_TMP" branch --list | sort)"
+if [[ "$_branches_before" != "$_branches_after" ]]; then
+  echo "FAIL: linear_issue_flag_needs_words — unexpected branch created" >&2
+  exit 1
+fi
+if ! echo "$_out" | grep -qi "requires description words"; then
+  echo "FAIL: linear_issue_flag_needs_words — expected the words error, got: $_out" >&2
+  exit 1
+fi
+
+# -----------------------------------------------------------------------
+# Case: linear_rejects_bare_number
+# A GitHub-style issue number is not a valid Linear identifier.
+# -----------------------------------------------------------------------
+echo "  testing: linear_rejects_bare_number"
+_branches_before="$(git -C "$_TMP" branch --list | sort)"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --issue 123 some words 2>&1 || true)"
+_branches_after="$(git -C "$_TMP" branch --list | sort)"
+if [[ "$_branches_before" != "$_branches_after" ]]; then
+  echo "FAIL: linear_rejects_bare_number — unexpected branch created" >&2
+  exit 1
+fi
+if ! echo "$_out" | grep -qi "must be an identifier"; then
+  echo "FAIL: linear_rejects_bare_number — expected the identifier error, got: $_out" >&2
+  exit 1
+fi
+
+unset _TS_TEST_TRACKER
+
+# -----------------------------------------------------------------------
+# Case: branch_and_issue_are_exclusive
+# Tracker-independent: the two flags name different things and cannot be
+# reconciled, so supplying both is an error rather than a precedence rule.
+# -----------------------------------------------------------------------
+echo "  testing: branch_and_issue_are_exclusive"
+_branches_before="$(git -C "$_TMP" branch --list | sort)"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --branch some/branch --issue 123 2>&1 || true)"
+_branches_after="$(git -C "$_TMP" branch --list | sort)"
+if [[ "$_branches_before" != "$_branches_after" ]]; then
+  echo "FAIL: branch_and_issue_are_exclusive — unexpected branch created" >&2
+  exit 1
+fi
+if ! echo "$_out" | grep -qi "mutually exclusive"; then
+  echo "FAIL: branch_and_issue_are_exclusive — expected the exclusivity error, got: $_out" >&2
+  exit 1
+fi
+
+# -----------------------------------------------------------------------
+# Case: branch_flag_requires_value
+# -----------------------------------------------------------------------
+echo "  testing: branch_flag_requires_value"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --branch 2>&1 || true)"
+if ! echo "$_out" | grep -qi "requires a value"; then
+  echo "FAIL: branch_flag_requires_value — expected the missing-value error, got: $_out" >&2
+  exit 1
+fi
+
+# -----------------------------------------------------------------------
+# Case: github_branch_flag
+# --branch is tracker-independent: on a GitHub repo it names the branch
+# directly and still recovers the issue number from the name.
+# -----------------------------------------------------------------------
+echo "  testing: github_branch_flag"
+rm -f "$_GH_SENTINEL"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --branch feat/42-some-github-work 2>&1)"
+_branch="feat/42-some-github-work"
+if ! git -C "$_TMP" branch --list | grep -qF "$_branch"; then
+  echo "FAIL: github_branch_flag — branch '$_branch' not found" >&2
+  exit 1
+fi
+if [[ ! -d "$_TMP/.facto/worktrees/42-some-github-work" ]]; then
+  echo "FAIL: github_branch_flag — expected worktree dir '42-some-github-work'" >&2
+  exit 1
+fi
+_task_json="$(cd "$_TMP/.facto/worktrees/42-some-github-work" && git rev-parse --absolute-git-dir)/task.json"
+if [[ "$(jq -r '.issue_number | type' "$_task_json")" != "number" ]]; then
+  echo "FAIL: github_branch_flag — GitHub issue_number must stay a JSON number, got $(jq -r '.issue_number | type' "$_task_json")" >&2
   exit 1
 fi
 _cleanup "$_branch"

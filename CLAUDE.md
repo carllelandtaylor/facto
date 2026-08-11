@@ -17,9 +17,13 @@ All planning docs for one task (product requirements, design, architecture, impl
 
 `<task-slug>` format: issue-backed tasks are `<issue-number>-<kebab-description>` (e.g. `111-observe`). Tasks with no issue are prefixed `UNKNOWN-` where the number would go (e.g. `UNKNOWN-ref-design-mock`), so a missing issue is explicit rather than looking like a dropped number. This is consistent everywhere: `task-start.sh` names no-issue worktrees and branches the same way (`feat/UNKNOWN-…`), and `facto-helper.sh task-slug` normalizes any bare slug to the `UNKNOWN-` form.
 
+On a repo tracked in Linear the issue-backed form is `<team-key>-<number>-<kebab-description>` instead (e.g. `sio-9-create-app-switcher`), since Linear identifies issues as `SIO-9` rather than by a bare number. `_normalize_slug` accepts both forms.
+
 ## Issue tracking
 
 Work in this repo is tracked as **GitHub Issues** on `carllelandtaylor/facto`, with lifecycle state held on the **[Facto GitHub Project](https://github.com/users/carllelandtaylor/projects/1)** (project #1, visible to repo collaborators only). Every improvement Issue is also a project item; supporting observations are comments on the relevant Issue. Tracker config — repo, project owner/number/name, and the Status field/value names — lives in `.facto/settings.json`, the single source of truth read by `facto-helper.sh` and the skills. The hardcoded values named here just reflect that file.
+
+This repo's own tracker is GitHub Issues, but the `facto` plugin supports **Linear** as an alternative for the projects it is used to build (`tracker.type` in the target repo's `.facto/settings.json`). Don't assume GitHub when editing a `plugins/facto/` skill — tracker operations belong in `facto:ref-tracker`, which carries a recipe per tracker. The `facto-dev` plugin is GitHub-only by design, since it tracks this repo.
 
 Name feature branches `<type>/<issue#>-<slug>` so the Issue auto-links (`feat/42-csv-export`, `fix/57-login-redirect`, `chore/63-bump-deps`).
 

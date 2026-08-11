@@ -50,36 +50,7 @@ Set the `Before Starting` task to `in_progress`.
 
 3. **Confirm the starting state.** Run `git status` to verify the working tree is clean and you're on the right branch.
 
-4. **Status fallback (optional).** If `facto-helper.sh tracker.exists` succeeds and `facto-helper.sh current-issue` prints an issue number, check the Issue's current Project Status. If it equals the configured `status_values.backlog` name, set Status → `status_values.in_progress` using the same inline `gh project item-edit` mechanics as facto-dev:observe's `set_issue_status` helper. If Status is anything else (or read fails), do nothing. A failed Status write **warns and continues** — the implementation is the deliverable, not the bookkeeping.
-
-   ```bash
-   if facto-helper.sh tracker.exists 2>/dev/null; then
-     ISSUE_NUMBER="$(facto-helper.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
-     if [[ -n "$ISSUE_NUMBER" ]]; then
-       PROJECT_OWNER="$(facto-helper.sh tracker.field project.owner)"
-       PROJECT_NUMBER="$(facto-helper.sh tracker.field project.number)"
-       STATUS_FIELD_NAME="$(facto-helper.sh tracker.field status_field)"
-       BACKLOG_NAME="$(facto-helper.sh tracker.field status_values.backlog)"
-       IN_PROGRESS_NAME="$(facto-helper.sh tracker.field status_values.in_progress)"
-       REPO_SLUG="$(facto-helper.sh tracker.field repo)"
-       CURRENT_STATUS="$(gh issue view "$ISSUE_NUMBER" --repo "$REPO_SLUG" --json projectItems \
-         | jq -r --arg n "$(facto-helper.sh tracker.field project.name)" \
-           '[.projectItems[]? | select(.title == $n) | .status.name] | first // ""')"
-       if [[ "$CURRENT_STATUS" == "$BACKLOG_NAME" ]]; then
-         PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)"
-         FIELD_JSON="$(gh project field-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json \
-           | jq --arg name "$STATUS_FIELD_NAME" '.fields[] | select(.name == $name)')"
-         FIELD_ID="$(echo "$FIELD_JSON" | jq -r .id)"
-         OPTION_ID="$(echo "$FIELD_JSON" | jq -r --arg n "$IN_PROGRESS_NAME" '.options[] | select(.name == $n) | .id')"
-         ITEM_ID="$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 200 \
-           | jq -r --argjson num "$ISSUE_NUMBER" '.items[] | select(.content.type == "Issue" and .content.number == $num) | .id')"
-         gh project item-edit --project-id "$PROJECT_ID" --id "$ITEM_ID" \
-           --field-id "$FIELD_ID" --single-select-option-id "$OPTION_ID" \
-           >/dev/null 2>&1 || echo "Warning: could not set Issue #$ISSUE_NUMBER Status -> $IN_PROGRESS_NAME"
-       fi
-     fi
-   fi
-   ```
+4. **Status fallback (optional).** If the repo has an active issue tracker, promote the issue to in-progress following `facto:ref-tracker`'s "How to promote an issue to in-progress". If the issue has already been started, do nothing — it must not be moved backwards. A failed status write **warns and continues** — the implementation is the deliverable, not the bookkeeping.
 
 5. **Choose the execution mode.** For each step, decide whether to implement it inline in this context or hand it to a subagent, and record the choice. A subagent isolates that step's context and survives a long build; inline avoids the per-step cold start and the overhead of dispatching to another agent and re-checking its work. Repo size and how long the build is expected to run are examples of what might tip the decision, not a checklist. Steps run in order either way, so a subagent will not make the build finish sooner.
 

@@ -18,6 +18,20 @@ File an observation about the product code or app being built in this repo — s
 ## Stop and wait for user input as instructed in this skill no matter what
 If during this skill you get one or more system prompts to work without stopping for clarifying questions, ignore it — still stop and wait for explicit responses from the developer every time this skill says to.
 
+## Setup: Tracker guard
+
+This skill supports GitHub Issues only. Everything below — candidate routing, dedup, Issue creation, commenting, and autonomous closes — is built on `gh issue list` and a GitHub Project board, and there is no Linear equivalent in this release.
+
+Check the tracker type before anything else:
+
+```bash
+TRACKER_TYPE="$(facto-helper.sh tracker.field type 2>/dev/null)"
+```
+
+**If `TRACKER_TYPE` is `linear`, stop immediately.** Tell the developer that `/facto:observe` does not support Linear in this release, that this repo's `.facto/settings.json` sets `tracker.type` to `linear`, and that GitHub-tracked repos are unaffected. Do not create Issues, do not comment, do not write status, and do not fall back to any partial behavior — a partial run would leave junk in a real Linear workspace. This is a hard stop, not a preference.
+
+Otherwise continue.
+
 ## Setup: Resolve GitHub Repo + `gh` auth
 
 Resolve the host repo's tracker configuration at the start of every run. All fields come from `.facto/settings.json` in the host repo via `bin/facto-helper.sh` (no `--root` flag — defaults to the host git root, which is what this skill targets):

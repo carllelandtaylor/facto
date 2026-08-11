@@ -48,38 +48,9 @@ You should have or be given:
 
 Set the `Phase 1` task to `in_progress`.
 
-- Read the bug: `gh issue view <n>` (with `--comments`) when given an issue number, else use the description. Capture expected vs. actual behavior and the affected area.
+- Read the bug: when given an issue, use `facto:ref-tracker`'s `resolve_active_issue` + `read_issue`; otherwise use the description you were given. Capture expected vs. actual behavior and the affected area.
 - Find and trace the relevant code so you understand where the behavior lives.
-- **Optional Status write (best-effort, warn-and-continue).** If the repo has an active Issue tracker, set the Issue's Project Status → in-progress, reusing `facto:implement`'s `facto-helper.sh` + `gh project item-edit` mechanics:
-
-  ```bash
-  if facto-helper.sh tracker.exists 2>/dev/null; then
-    ISSUE_NUMBER="$(facto-helper.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
-    if [[ -n "$ISSUE_NUMBER" ]]; then
-      PROJECT_OWNER="$(facto-helper.sh tracker.field project.owner)"
-      PROJECT_NUMBER="$(facto-helper.sh tracker.field project.number)"
-      STATUS_FIELD_NAME="$(facto-helper.sh tracker.field status_field)"
-      BACKLOG_NAME="$(facto-helper.sh tracker.field status_values.backlog)"
-      IN_PROGRESS_NAME="$(facto-helper.sh tracker.field status_values.in_progress)"
-      REPO_SLUG="$(facto-helper.sh tracker.field repo)"
-      CURRENT_STATUS="$(gh issue view "$ISSUE_NUMBER" --repo "$REPO_SLUG" --json projectItems \
-        | jq -r --arg n "$(facto-helper.sh tracker.field project.name)" \
-          '[.projectItems[]? | select(.title == $n) | .status.name] | first // ""')"
-      if [[ "$CURRENT_STATUS" == "$BACKLOG_NAME" ]]; then
-        PROJECT_ID="$(gh project view "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json | jq -r .id)"
-        FIELD_JSON="$(gh project field-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json \
-          | jq --arg name "$STATUS_FIELD_NAME" '.fields[] | select(.name == $name)')"
-        FIELD_ID="$(echo "$FIELD_JSON" | jq -r .id)"
-        OPTION_ID="$(echo "$FIELD_JSON" | jq -r --arg n "$IN_PROGRESS_NAME" '.options[] | select(.name == $n) | .id')"
-        ITEM_ID="$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 200 \
-          | jq -r --argjson num "$ISSUE_NUMBER" '.items[] | select(.content.type == "Issue" and .content.number == $num) | .id')"
-        gh project item-edit --project-id "$PROJECT_ID" --id "$ITEM_ID" \
-          --field-id "$FIELD_ID" --single-select-option-id "$OPTION_ID" \
-          >/dev/null 2>&1 || echo "Warning: could not set Issue #$ISSUE_NUMBER Status -> $IN_PROGRESS_NAME"
-      fi
-    fi
-  fi
-  ```
+- **Optional Status write (best-effort, warn-and-continue).** If the repo has an active issue tracker, promote the issue to in-progress following `facto:ref-tracker`'s "How to promote an issue to in-progress". The guard there matters: an issue already in review or done must not be moved backwards.
 
 Set the `Phase 1` task to `completed`.
 
@@ -89,7 +60,7 @@ Set the `Phase 1` task to `completed`.
 
 Set the `Phase 2` task to `in_progress`.
 
-- Launch a **subagent** (Agent tool, `model: "opus"`) and tell it to run `/facto:repro-bug` via the Skill tool, passing the issue number or description.
+- Launch a **subagent** (Agent tool, `model: "opus"`) and tell it to run `/facto:repro-bug` via the Skill tool, passing the issue identifier or description.
 - Save the confirmed repro: minimal steps, preconditions, observed-wrong vs. expected, and evidence. You will verify the fix against exactly these steps.
 - **If the bug cannot be reproduced**, STOP and report the "could not reproduce" result with what was tried. Do not attempt a speculative fix for a bug you cannot observe.
 
