@@ -151,7 +151,7 @@ After Phase 5 is complete, generate **TECHNICAL-DESIGN.md**:
 - Future Technical Enhancements
 - Development Principles
 
-Under **Development Workflow**, record whether the project will use Facto's GitHub Issues + Project tracker. If it will, tell the user to run `/facto:setup-facto` in the repo to write `.facto/settings.json` and wire up the pipeline (`facto:plan-implementation`, `facto:implement`, `facto:pr`, and `task-start --issue`); without it those tracker behaviors silently no-op. If it won't, note `Facto config: none` so future agents don't re-ask.
+Under **Development Workflow**, record which task tracker the project will use — GitHub Issues + a Project board, Linear, or none. If it will use one, tell the user to run `/facto:setup-facto` in the repo to write `.facto/settings.json` and wire up the pipeline (`facto:plan-implementation`, `facto:implement`, `facto:pr`, and `task-start --issue` / `--branch`); without it those tracker behaviors silently no-op. If it won't, note `Facto config: none` so future agents don't re-ask.
 
 ---
 

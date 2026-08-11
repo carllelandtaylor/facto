@@ -60,13 +60,17 @@ When updating an existing block, edit only the affected line(s) — never rewrit
 
 ## Phase 3: Wire this repo to a tracker (per-project, optional)
 
-Ask the user whether the **current repo** should use GitHub Issues + a GitHub Project board as its task tracker. The pipeline skills (`facto:plan-implementation`, `facto:implement`, `facto:pr`) and the `task-start --issue` flag read tracker config from `.facto/settings.json` in the repo root; without it those behaviors silently degrade to no-op.
+Ask the user which tracker the **current repo** should use. The pipeline skills (`facto:plan-implementation`, `facto:implement`, `facto:pr`) and the `task-start --issue` / `--branch` flags read tracker config from `.facto/settings.json` in the repo root; without it those behaviors silently degrade to no-op.
 
-> "Do you want to use GitHub Issues + a Project board as the task tracker for this repo? If yes, I'll write a `.facto/settings.json` that wires it up."
+> "Which task tracker should this repo use — GitHub Issues + a Project board, Linear, or none? If you pick one, I'll write a `.facto/settings.json` that wires it up."
 
-**If no:** skip to Phase 4.
+Pull requests are GitHub PRs either way; only issue tracking varies.
 
-**If yes:** run a short sub-interview, one question at a time:
+**If none:** skip to Phase 4.
+
+**If Linear:** go to "Phase 3b: Linear" below.
+
+**If GitHub Issues:** run a short sub-interview, one question at a time:
 
 1. **GitHub repo slug** — default: `gh repo view --json nameWithOwner -q .nameWithOwner` from the current repo. Ask if the remote isn't set yet (e.g. `owner/repo`).
 2. **GitHub Project** — ask:
@@ -109,6 +113,61 @@ Write `.facto/settings.json` in the repo root (`git rev-parse --show-toplevel`) 
 
 To keep task planning docs somewhere other than the default `facto-tasks/`, add a top-level `"tasks_dir": "<relative-or-absolute-path>"` to this file. Omit it to use the default.
 
+### Phase 3b: Linear
+
+Linear is reached through its MCP server, which only agents can call — shell scripts cannot. Two consequences to state to the user before configuring anything:
+
+- **`/facto:observe` is unavailable on Linear** in this release. It stops with an error on a Linear repo.
+- **`task-start` cannot fetch from Linear.** Starting a task means pasting the branch name Linear generates (`task-start --branch <name>`) or giving an identifier plus words (`task-start --issue ENG-42 add csv export`). It also cannot set the issue's state; the first skill to pick the task up does that.
+
+Then run the sub-interview:
+
+1. **Workspace slug** — the segment in Linear URLs, e.g. `acme-labs` in `https://linear.app/acme-labs/issue/ENG-42/…`.
+2. **Team** — the team's *name*, which is what the MCP tools accept. `list_teams` enumerates them.
+3. **Team key** — the uppercase prefix in issue identifiers, e.g. `ENG` in `ENG-42`.
+4. **Branch prefix** — the leading segment of Linear's generated branch names, usually the user's Linear username. Read it off any issue's `gitBranchName` via `get_issue` rather than guessing.
+5. **Status mapping** — enumerate the team's real workflow states with `list_issue_statuses` and map Facto's five keys onto them. **Do not assume Linear's defaults exist.** Teams vary: a team may have no `In Review` state, and no Linear team has an equivalent of Facto's `In test`. For each Facto key with no natural counterpart, ask which existing state it should map onto and tell the user what that costs — e.g. mapping `in_review` onto `Done` means an issue reads Done from the moment a PR opens, not when it merges.
+6. **`promote_from_status_types`** — the `statusType` values that count as "not started", so a skill beginning work knows what it may promote. Usually `["backlog", "unstarted"]`; confirm against the states enumerated above.
+7. **`pr_link_format`** — ask whether to use a magic word (`Fixes {issue}`) so Linear can move the issue when the PR merges, or a plain reference (`{issue}`) for human readers only. Linear links the PR from the branch name regardless.
+
+Write `.facto/settings.json` with the answered values:
+
+```json
+{
+  "tracker": {
+    "type": "linear",
+    "workspace": "<workspace slug>",
+    "team": "<team name>",
+    "team_key": "<TEAM>",
+    "branch_prefix": "<branch prefix>",
+    "status_values": {
+      "backlog":     "<backlog state>",
+      "in_progress": "<in-progress state>",
+      "in_review":   "<in-review state>",
+      "in_test":     "<in-test state>",
+      "done":        "<done state>"
+    },
+    "promote_from_status_types": ["backlog", "unstarted"],
+    "branch_issue_pattern": "^[^/]+/(?<issue>[a-z][a-z0-9]*-[0-9]+)-",
+    "pr_link_format": "<Fixes {issue} or {issue}>",
+    "skill_signature_prefix": "{skill} says:",
+    "labels": {
+      "ignore": []
+    }
+  }
+}
+```
+
+`repo`, `project`, and `status_field` are absent by design — Linear holds lifecycle state in per-team workflow states, not a project board with a single-select field.
+
+Finally, tell the user how to connect the MCP server if it isn't already, and that they must authenticate before any skill can reach Linear:
+
+```bash
+claude mcp add --transport http --scope project linear https://mcp.linear.app/mcp
+```
+
+Then `/mcp` → `linear` → complete the OAuth login. Note that project scope writes `.mcp.json` at the repo root, which git worktrees only see once it is committed.
+
 ## Phase 4: Worktree hook stubs (per-project, optional)
 
 Ask whether this repo needs per-task setup/teardown (install deps, copy `.env`, run migrations, start/stop services, free ports). If yes, create stub hooks in the repo's `.facto/` dir (don't overwrite existing ones):
@@ -123,5 +182,5 @@ Each receives the worktree path as `$1`. Seed them as executable no-op templates
 PATH/alias changes only take effect in new shells. Report to the user:
 
 - The profile file the PATH block went in, and that they should open a new terminal (or `source` it) for `task-start`/`task-list`/`task-end` to work.
-- Whether a tracker was configured, and if so the repo slug + Project written to `.facto/settings.json`. Verify it parses: `facto-helper.sh tracker.field repo` should print the repo slug.
+- Which tracker was configured, if any, and what was written to `.facto/settings.json`. Verify it parses with `facto-helper.sh tracker.field type`, which should print the configured type. Then check a tracker-specific field: `tracker.field repo` prints the repo slug on GitHub Issues; `tracker.field team` prints the team name on Linear. For Linear, also restate that the MCP server must be authenticated and that `/facto:observe` is unavailable.
 - Which worktree hook stubs were created, if any.
