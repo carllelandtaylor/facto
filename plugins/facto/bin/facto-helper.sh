@@ -22,7 +22,9 @@ set -euo pipefail
 # Subcommands:
 #   tracker.exists             — exit 0 if .facto/settings.json exists and has .tracker; exit 1 otherwise (silent)
 #   tracker.field <jq-path>    — print .tracker.<jq-path> to stdout
-#   current-issue              — print the active issue number to stdout
+#   current-issue              — print the active issue's identifier to stdout: a number on a
+#                                github-issues tracker ("113"), a team-scoped identifier on a
+#                                linear tracker ("SIO-9", uppercased)
 #   task-slug                  — print the canonical task slug for the current worktree/branch
 #   task-dir [<slug>]          — print the absolute per-task planning-doc dir (<root>/facto-tasks/<slug>
 #                                by default; override the "facto-tasks" segment via .tasks_dir in
@@ -71,12 +73,14 @@ _tasks_base() {
   fi
 }
 
-# Normalize a task slug: issue-backed ("<n>-…") and already-"UNKNOWN-" slugs
-# pass through unchanged; anything else gets the "UNKNOWN-" prefix so a missing
-# issue number is explicit rather than looking like a dropped number.
+# Normalize a task slug: issue-backed slugs and already-"UNKNOWN-" slugs pass
+# through unchanged; anything else gets the "UNKNOWN-" prefix so a missing issue
+# is explicit rather than looking like a dropped number. Three forms count as
+# issue-backed: a GitHub number ("113-…"), a Linear identifier ("sio-9-…"), and
+# the "UNKNOWN-" marker itself.
 _normalize_slug() {
   local s="$1"
-  if [[ ! "$s" =~ ^([0-9]+|UNKNOWN)- ]]; then
+  if [[ ! "$s" =~ ^([0-9]+|UNKNOWN|[a-z][a-z0-9]*-[0-9]+)- ]]; then
     s="UNKNOWN-$s"
   fi
   printf '%s\n' "$s"
@@ -226,7 +230,19 @@ if [[ "$subcommand" == "current-issue" ]]; then
   basic_pattern=$(echo "$pattern" | sed 's/(?<[a-zA-Z_][a-zA-Z0-9_]*>/(/g')
 
   if [[ "$branch" =~ $basic_pattern ]]; then
-    echo "${BASH_REMATCH[1]}"
+    issue_id="${BASH_REMATCH[1]}"
+    # Linear branch names carry the identifier lowercased ("sio-9"); Linear's
+    # canonical form is uppercase ("SIO-9"), and its API echoes that. Normalize
+    # here so no caller has to.
+    if [[ -n "$EXPLICIT_ROOT" ]]; then
+      tracker_type="$("$0" --root "$EXPLICIT_ROOT" tracker.field type)"
+    else
+      tracker_type="$("$0" tracker.field type)"
+    fi
+    if [[ "$tracker_type" == "linear" ]]; then
+      issue_id="${issue_id^^}"
+    fi
+    echo "$issue_id"
     exit 0
   fi
 
