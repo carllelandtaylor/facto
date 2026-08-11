@@ -199,15 +199,9 @@ Do this in a single pass — fetch the body once, edit once, and do not re-read 
 
 ### Active Issue link + Status write (first creation only)
 
-Before invoking `gh pr create`, check whether the host repo has an active Issue:
+Before invoking `gh pr create`, resolve the active issue with `facto:ref-tracker`'s `resolve_active_issue`.
 
-```bash
-if facto-helper.sh tracker.exists 2>/dev/null; then
-  ISSUE_NUMBER="$(facto-helper.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
-fi
-```
-
-If `$ISSUE_NUMBER` is set, build the PR-link line by substituting `{issue}` into `facto-helper.sh tracker.field pr_link_format` (default `Resolves #{issue}` → `Resolves #123`) and insert it into the body as the **second line of the `## Summary` section** (immediately after the one-line summary). Example body fragment:
+If there is one, build the PR-link line following `facto:ref-tracker`'s "How to link a PR to the active issue", and insert it as the **second line of the `## Summary` section** (immediately after the one-line summary). The line's form comes from the tracker's `pr_link_format`, so it reads `Resolves #123` on GitHub Issues and `Fixes SIO-9` on Linear. Example body fragment:
 
 ```
 ## Summary
@@ -219,9 +213,11 @@ Resolves #123
 …
 ```
 
-After `gh pr create` succeeds and the PR URL is captured, set the *issue*'s Project Status → `status_values.in_review` using the same inline `gh project item-edit` pattern as `facto:implement`'s fallback (see that skill for the canonical shell snippet). Status-write failures **warn and continue** — PR creation is the deliverable.
+After `gh pr create` succeeds and the PR URL is captured, apply `facto:ref-tracker`'s `set_issue_status` with the `in_review` key. Status-write failures **warn and continue** — PR creation is the deliverable.
 
-If `facto-helper.sh tracker.exists` fails or `facto-helper.sh current-issue` returns nothing, skip both the link insertion and the Status write — proceed with the current behavior.
+If no active issue resolves, skip both the link insertion and the status write — proceed with the current behavior.
+
+Note that the PR itself is always a GitHub PR: only issue tracking varies by `tracker.type`. Every `gh pr` command in this skill is unaffected.
 
 ### Body structure for new PRs
 

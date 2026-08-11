@@ -41,19 +41,9 @@ By default, look for any existing planning docs in the task directory (resolved 
 
 ## Optional: Active Issue context
 
-If `facto-helper.sh tracker.exists` succeeds and `facto-helper.sh current-issue` prints an issue number, fetch the Issue's body and comments and treat them as additional **requirements input** alongside any explicit PRD or design docs:
+If there is an active issue, fetch its body and comments and treat them as additional **requirements input** alongside any explicit PRD or design docs. Use `facto:ref-tracker`'s `resolve_active_issue` followed by `read_issue`.
 
-```bash
-if facto-helper.sh tracker.exists 2>/dev/null; then
-  ISSUE_NUMBER="$(facto-helper.sh current-issue 2>/dev/null)" || ISSUE_NUMBER=""
-  if [[ -n "$ISSUE_NUMBER" ]]; then
-    REPO_SLUG="$(facto-helper.sh tracker.field repo)"
-    gh issue view "$ISSUE_NUMBER" --repo "$REPO_SLUG" --json title,body,comments
-  fi
-fi
-```
-
-Do not write back to the Issue. If either command fails, proceed without Issue context — never block planning on Issue retrieval. The check degrades silently when no `.facto/settings.json` exists, when no active Issue can be resolved from `task.json` or the branch slug, or when `gh` is unreachable.
+Do not write back to the issue. If either operation fails, proceed without issue context — never block planning on issue retrieval. The check degrades silently when no `.facto/settings.json` exists, when no active issue can be resolved from `task.json` or the branch slug, or when the tracker is unreachable.
 
 ---
 
