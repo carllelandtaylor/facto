@@ -85,7 +85,7 @@ Set the step's task to `in_progress`.
 
 Re-evaluate this step's mode before implementing it, and switch from the Phase 1 choice if the build has changed — the step reads larger than planned, or the context is long enough that compaction is a risk.
 
-**Inline:** Make the code changes described in the step directly in this context, and nothing outside the step's scope. When they're done, run `/facto:commit-or-amend` via the Skill tool, passing it the step's commit message and context.
+**Inline:** Make the code changes described in the step directly in this context, and nothing outside the step's scope. When they're done, run `/facto:commit-or-amend` via the Skill tool, passing it the step's commit message and context, and telling it that committing does not end the turn — when it is finished it returns to this point in this skill, which then carries on. When it's done, continue in your instructions here.
 
 **Subagent:** Launch a subagent (Agent tool, `model: "sonnet"`) to implement the step. Give the subagent:
 - The step's full description (goal, changes, implementation details)
@@ -112,7 +112,7 @@ Before pausing for developer input on a failure, search the plan for documented 
 If validation fails:
 - Read the error output carefully
 - Fix the issue (in a subagent, `model: "sonnet"`, if the fix is non-trivial)
-- Run `/facto:commit-or-amend` via the Skill tool to fold the fix into the appropriate commit
+- Run `/facto:commit-or-amend` via the Skill tool to fold the fix into the appropriate commit, telling it that committing does not end the turn — it returns here and you carry on down this list
 - Re-run validation
 - If you cannot resolve the failure after two attempts, note it and proceed to the next step
 
@@ -139,7 +139,7 @@ Run all final validation steps from the plan:
 
 Before pausing for developer input on a failure, search the plan for documented fallback paths for the failing area. Use `grep -i -E 'fallback|if this fails|alternative|in case of failure' <path-to-plan-file>` (substituting the actual plan file path provided at invocation) and check for Fallback sub-sections co-located with the failing step's Validation. If a specific fallback is documented, attempt it first and report results. Only pause for developer input if no documented fallback exists or the fallback also fails.
 
-If any final validation fails, fix the issues and run `/facto:commit-or-amend` via the Skill tool to fold fixes into the appropriate existing commits.
+If any final validation fails, fix the issues and run `/facto:commit-or-amend` via the Skill tool to fold fixes into the appropriate existing commits, telling it that committing does not end the turn — it returns here and you work through the rest of the Test Plan.
 
 Set the `Test Plan` task to `completed`.
 
