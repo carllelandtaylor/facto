@@ -86,7 +86,7 @@ Keep it to 2–5 lines each — enough for a developer reading `git log` to unde
 
 ## Phase 5: Verify
 
-Run `git log <base>..HEAD --oneline` and confirm the commit history looks correct. Report what was done:
+Run `git log <base>..HEAD --oneline` and confirm the commit history looks correct. Report:
 - Which files were amended into which commits
 - Any new commits created
-- The final commit stack
+- The commit stack
