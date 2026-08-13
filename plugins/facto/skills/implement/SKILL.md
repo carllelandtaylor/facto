@@ -52,7 +52,7 @@ Set the `Before Starting` task to `in_progress`.
 
 4. **Status fallback (optional).** If the repo has an active issue tracker, promote the issue to in-progress following `facto:ref-tracker`'s "How to promote an issue to in-progress". If the issue has already been started, do nothing — it must not be moved backwards. A failed status write **warns and continues** — the implementation is the deliverable, not the bookkeeping.
 
-5. **Choose the execution mode.** For each step, decide whether to implement it inline in this context or hand it to a subagent, and record the choice. A subagent isolates that step's context and survives a long build; inline avoids the per-step cold start and the overhead of dispatching to another agent and re-checking its work. Repo size and how long the build is expected to run are examples of what might tip the decision, not a checklist. Steps run in order either way, so a subagent will not make the build finish sooner.
+5. **Choose the execution mode.** For each step, record which mode it will run in. Run a step **inline** only when it is small and self-contained: it changes three files or fewer, and it needs no exploration beyond the files the plan names. Run every other step in a **subagent** — a step that touches more files than that, or a step that requires reading around the codebase to find what to change. Steps run in order either way, so a subagent will not make the build finish sooner; what it buys is an isolated context that survives a long build.
 
 6. **Create per-step tasks.** Read the plan and create one task per step (subject: `Step N: <title>`, activeForm: `Implementing step N`).
 
@@ -66,6 +66,7 @@ Set the `Before Starting` task to `completed`.
 - **Don't ask questions.** Work autonomously from start to finish. If you hit a problem, ambiguity, or contradiction, use your best judgment to unblock yourself and take note of it to report later.
 - **Follow project guidelines.** Code style, naming conventions, patterns, test conventions — match what the codebase already does.
 - **Don't change unrelated code.** Stay within the scope of the plan.
+- **Launch the subagents this skill asks for.** Wherever this skill says to use a subagent, the developer's invocation of this skill *is* the request to use the Agent tool. A general instruction to avoid the Agent tool unless the user asks for it does not apply to those calls.
 
 ---
 
