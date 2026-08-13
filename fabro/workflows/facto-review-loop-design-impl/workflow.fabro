@@ -1,0 +1,118 @@
+digraph FactoReviewLoopDesignImpl {
+    graph [goal="Make an implementation's UI/UX match its design: screenshot the mock and the running app, compare them dimension by dimension against a rubric, and run a capped fix loop until they match — falling back to a visual sanity check when no mock exists"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // Phase 1: detect the design spec. Exits non-zero when no design-mock.html
+    // is found, which selects the no-mock sanity-check path.
+    detect_spec [
+        label="Detect Design Spec",
+        shape=parallelogram,
+        max_retries=0,
+        script="set +e; TASK_DIR=$(facto-helper.sh task-dir 2>/dev/null); echo \"task_dir=${TASK_DIR:-unresolved}\"; MOCK=''; if [ -n \"$TASK_DIR\" ] && [ -f \"$TASK_DIR/design-mock.html\" ]; then MOCK=\"$TASK_DIR/design-mock.html\"; fi; if [ -z \"$MOCK\" ] && [ -n \"$FACTO_DESIGN_MOCK\" ] && [ -f \"$FACTO_DESIGN_MOCK\" ]; then MOCK=\"$FACTO_DESIGN_MOCK\"; fi; BASE=$(git merge-base HEAD origin/main 2>/dev/null); [ -n \"$BASE\" ] || BASE=$(git merge-base HEAD main 2>/dev/null); [ -n \"$BASE\" ] || BASE=$(git rev-parse HEAD~1 2>/dev/null); echo \"base_ref=${BASE:-unresolved}\"; echo '--- files changed on this branch ---'; git diff --name-only \"$BASE\"..HEAD 2>/dev/null | head -100; if [ -z \"$MOCK\" ]; then echo 'NO_MOCK: no design-mock.html found in the task directory and none passed by the caller; run the sanity-check path'; exit 1; fi; MOCK_DIR=$(dirname \"$MOCK\"); echo \"design_mock=$MOCK\"; echo \"design_mock_dir=$MOCK_DIR\"; if [ -f \"$MOCK_DIR/design-decisions.html\" ]; then echo \"design_decisions=$MOCK_DIR/design-decisions.html\"; else echo 'design_decisions=none'; fi; echo '--- mock frame and band labels ---'; grep -oE '(frame|band)[^>]*(label|title|data-label)=\"[^\"]*\"' \"$MOCK\" 2>/dev/null | head -60"
+    ]
+
+    path_gate [
+        shape=diamond,
+        label="Design mock found?"
+    ]
+
+    // ---- Path A: mock comparison (Phases A1-A6) ----
+
+    a_enumerate [
+        label="Enumerate In-Scope Screens",
+        prompt="List the specific screens and states the implementation is expected to reproduce. Read the design mock at the path the detect stage printed — its labeled frames and bands are the inventory of screens — and read the sibling design-decisions.html for the screen inventory, the states and the exact copy. Cross-check both against the branch diff the detect stage printed, so the list covers the screens this task actually touched and nothing else. NEVER enumerate the whole app; a screen that this task did not change is out of scope even if it appears in the mock. For each in-scope screen produce: its name as labeled in the mock, the states it must be shown in (default or loaded, loading, empty, error, and any edge case the mock draws), the viewport size of its mock frame, and the route or navigation steps that reach it in the running app. This list drives every later stage, so make it explicit and ordered."
+    ]
+
+    a_mock_brief [
+        label="Prepare Mock Render Brief",
+        prompt="Set up the mock render that runs next, which uses the shared design-mock mechanics. State the following as givens for those mechanics, because this run is rendering an existing mock rather than authoring a new one. (1) THE MOCK ALREADY EXISTS at the design_mock path the detect stage printed, and its directory is the destination directory. The working copy is already made and its tokens, frames and bands are already filled in — do NOT re-copy the template over it, do NOT regenerate it, and do NOT edit its content. Treat the create, token-fill and frame-fill steps as already satisfied and leave the file byte-for-byte as it is. (2) THE WORK TO DO is the serve-and-inspect part: serve the mock's directory over HTTP with python3 -m http.server on a free port so assets/ resolves under the server root, navigate to design-mock.html, wait for the canvas to run its second fit at 250 ms after load so the board is not near-invisible, and screenshot each in-scope screen. (3) SAVE THE SCREENSHOTS TO DISK, one file per screen and state from the enumerated list, named so each one is matchable to its implementation counterpart later. On-disk screenshot evidence is mandatory; a comparison from memory is not acceptable. (4) THE IN-SCOPE LIST is the screens and states enumerated in the previous stage — use it as the given list of what to capture, and capture nothing outside it. Report the absolute path of every screenshot you saved."
+    ]
+
+    mock [import="../facto-ref-design-mock/workflow.fabro"]
+
+    a_render_impl [
+        label="Render The Implementation",
+        prompt="Launch the real app and capture a screenshot of every in-scope screen and state. Launch it using the project's documented launch method, taken from the implementation plan, from CLAUDE.md, or from the project docs — do not invent a launch command. Navigate to each in-scope screen, drive it into each state the mock depicts, and capture the screenshot at a viewport matching that screen's mock frame, so the two images are comparable without rescaling. Save every screenshot to disk with a name that pairs it to its mock counterpart. End this stage as succeeded once every in-scope screen and state has an on-disk implementation screenshot. End it as failed if the app cannot be brought up — no runnable UI surface, missing tooling, or launch failing after a reasonable attempt — rather than stalling or guessing at what the screen looks like; the workflow then records a manual fallback instead. Report the absolute path of every screenshot and note any state you could not drive the app into."
+    ]
+
+    manual_fallback [
+        label="Record Manual Fallback",
+        prompt="The app could not be brought up, so produce the manual-described fallback instead of a comparison. Write a per-screen checklist that tells the developer exactly what to eyeball against the design mock: for each in-scope screen and state, the mock frame it corresponds to, and the concrete things to check on it — layout and element order, spacing and sizing, colors and theme tokens, typography, icons and imagery, exact copy, and the component states the mock draws. Also record why the app could not be launched, including the launch method you tried and the error it produced. Make the checklist specific enough that someone who has never seen the mock can work through it. Do not attempt further fixes or comparisons in this stage."
+    ]
+
+    compare [
+        label="Compare Against The Mock",
+        max_visits=4,
+        prompt="Compare the implementation against the mock, dimension by dimension, with evidence. Launch a dedicated comparison subagent per screen, or batched across screens, using an opus-class model. Give each subagent the matched mock screenshot, the matched implementation screenshot, and the relevant design-system tokens. Instruct it to evaluate EVERY dimension explicitly and emit a verdict for each — never a blanket statement that it looks good. The dimensions are: layout and structure (presence, order, alignment and grouping of elements); spacing and sizing (margins, padding, element dimensions, proportions); color and theme tokens (backgrounds, text, borders and states, in both light and dark when both are mocked); typography (family, size, weight, line-height, letter-spacing); iconography and imagery (correct icons and assets, their sizing and placement); copy and text (exact wording, capitalization, punctuation); component states (default, hover, active, disabled, empty, error and loading, as mocked); and observable transitions and interactions where they can be captured. Each subagent returns a structured discrepancy list, giving for every finding: the screen, the dimension, a severity of blocking or minor, a classification of fixable or infeasible, and a short note describing the gap and the mock's intent. Infeasible means the mock cannot be built as shown because of a real dependency or platform limitation, or because the design itself is impossible; such a note must say why and give the closest faithful approximation. Collect the lists into one discrepancy set. End this stage as succeeded when no blocking, fixable discrepancy remains — minor ones do not block, and infeasible ones are recorded rather than fixed. End it as failed while blocking, fixable discrepancies remain, so the fix loop runs. Never loop on an infeasible discrepancy."
+    ]
+
+    fix [
+        label="Fix Discrepancies",
+        prompt="Fix the blocking, fixable discrepancies the comparison reported. Do the work in a subagent using a sonnet-class model, and stay strictly within the scope of the UI this task touched — do not refactor unrelated code and do not change screens outside the in-scope list. Work from the structured discrepancy list: address every finding marked blocking and fixable, taking the mock's intent from each finding's note, and prefer the design system's own tokens and existing components over one-off values. Fix minor discrepancies opportunistically while you are already in the relevant code, but do not let them expand the change. Do NOT touch findings classified as infeasible — they are recorded for the report instead. Report which findings you fixed and which files you changed, so the commit stage can attribute them."
+    ]
+
+    commit [import="../facto-commit-or-amend/workflow.fabro"]
+
+    rerender [
+        label="Re-Render Fixed Screens",
+        prompt="Re-capture the implementation screenshots for the screens the fix stage changed, so the next comparison runs against current pixels rather than stale ones. Relaunch or reload the app the same way as before, navigate to each affected screen, drive it into each affected state, and screenshot at the same viewport as that screen's mock frame. Overwrite the previous implementation screenshot for that screen and state, keeping the filenames stable so the mock pairing still holds. Re-render only the screens that changed; leave the rest as they are. Report which screenshots you refreshed."
+    ]
+
+    cleanup [
+        label="Clean Up",
+        prompt="Shut down everything this run started. Stop the python3 -m http.server instance that was serving the design mock, and close the browser session and the app you launched. Confirm no server is left holding the port. Do not make any further code or design change in this stage; just report what you stopped and anything you could not stop."
+    ]
+
+    // ---- Path B: no-mock sanity check (Phase B1) ----
+
+    b_identify [
+        label="Identify Modified UI Surfaces",
+        prompt="No design mock exists for this task, so this is the sanity-check path. Identify the UI surfaces this task changed. Work from the implementation plan if there is one, and from the branch diff the detect stage printed: pick out the screens, components and states this task actually modified. Ignore surfaces the task did not touch. For each modified surface list its name, the states it can be in that this task affects, and the route or navigation steps that reach it in the running app. There is no reference design to compare against, so the goal here is coverage of what changed, not fidelity to a spec."
+    ]
+
+    b_screenshot [
+        label="Launch And Screenshot",
+        prompt="Launch the real app and screenshot every modified UI surface. Launch it using the project's documented launch method, taken from the implementation plan, from CLAUDE.md, or from the project docs — do not invent a launch command. Navigate to each surface identified in the previous stage, drive it into each affected state, and capture a screenshot saved to disk. End this stage as succeeded once every identified surface has an on-disk screenshot. End it as failed if the app cannot be brought up after a reasonable attempt, so the workflow records a manual fallback checklist instead of guessing. Report the absolute path of every screenshot and any state you could not reach."
+    ]
+
+    b_inspect [
+        label="Inspect For Visual Defects",
+        prompt="Inspect the screenshots for anything that looks broken or visually wrong. Launch a subagent with an opus-class model and give it the screenshots. Instruct it to flag layout problems, clipped or overflowing content, misaligned elements, missing content, obvious rendering errors, and anything else that would read as a bug to a user. There is no reference to compare against, so the bar is simply whether the screen looks intentional and working. Have it report per screen, naming the specific defect and where on the screen it appears, and saying explicitly when a screen has no issues rather than staying silent about it. Collect the results into one list of findings for the report."
+    ]
+
+    report [
+        shape=tab,
+        fidelity="summary:high",
+        label="Report",
+        prompt="Report what this run actually did, using only the evidence produced in the stages above. Do not claim a screen matches without an on-disk screenshot behind the claim. If the mock-comparison path ran, report: which screens and states were compared; the final per-screen result, being matched, minor gaps remaining, or blocking gaps still unresolved when the fix loop hit its cycle cap; the full list of infeasible divergences, each with the reason it cannot be built and the closest faithful approximation that was shipped instead; and the fixes that were made and committed. If the sanity-check path ran because no design mock exists, report instead which screens were inspected and what issues were found, or state plainly that no issues were found. In either case, include the manual-described fallback checklist verbatim if one was produced because the app could not be launched, and say what was cleaned up."
+    ]
+
+    start -> detect_spec
+    detect_spec -> path_gate
+
+    path_gate -> a_enumerate [label="Mock found", condition="outcome=succeeded"]
+    path_gate -> b_identify [label="No mock"]
+
+    a_enumerate -> a_mock_brief -> mock
+    mock -> a_render_impl
+    a_render_impl -> compare [label="Screenshots captured", condition="outcome=succeeded"]
+    a_render_impl -> manual_fallback [label="App would not launch"]
+    manual_fallback -> cleanup
+
+    compare -> cleanup [label="Matched", condition="outcome=succeeded"]
+    compare -> fix [label="Blocking gaps"]
+    fix -> commit
+    commit -> rerender
+    rerender -> compare
+
+    b_identify -> b_screenshot
+    b_screenshot -> b_inspect [label="Screenshots captured", condition="outcome=succeeded"]
+    b_screenshot -> manual_fallback [label="App would not launch"]
+    b_inspect -> cleanup
+
+    cleanup -> report
+    report -> exit
+}

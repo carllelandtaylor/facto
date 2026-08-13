@@ -1,0 +1,108 @@
+digraph FactoImplement {
+    graph [goal="Execute a detailed technical plan step by step: implement and commit each step, validate it, run the design-fidelity and code review loops, open a pull request, and summarize the results — autonomously, without asking questions"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    before_starting [
+        label="Phase 1: Before Starting",
+        prompt="Prepare to execute the technical plan you were given. The plan comes from /facto:plan-implementation or an equivalent source; if it is a file, read it top to bottom, and if it is in the conversation, use it directly. If no plan exists at all, say so and stop — there is nothing to implement.\n\n1. CHECK FOR MANUAL PREREQUISITES. Scan the whole plan for developer-action, manual or prerequisite markers such as 'Developer actions:', '[manual]', 'no commit' or 'blocked on developer'. If any exist, list them and confirm with the developer that they are complete before going further. If the developer says they are not done, stop and wait — do not begin automated work that cannot complete autonomously.\n\n2. READ PROJECT GUIDELINES. Find and read the root and subdirectory `CLAUDE.md` files, `CONTRIBUTING.md` if it exists, and any technical documentation the plan references. Code style, naming, patterns and test conventions must match what the codebase already does.\n\n3. CONFIRM THE STARTING STATE. Run `git status` to verify the working tree is clean and that you are on the right branch.\n\n4. STATUS FALLBACK, OPTIONAL. If `facto-helper.sh tracker.exists` succeeds and `facto-helper.sh current-issue` prints an issue number, read that Issue's current Project Status. If it equals the tracker's `status_values.backlog` name, set the Status to `status_values.in_progress` with `gh project item-edit`, resolving the project id, status field id, option id and item id from `gh project view`, `gh project field-list` and `gh project item-list`. If the Status is anything else, or the read fails, do nothing. A failed Status write WARNS and continues — the implementation is the deliverable, not the bookkeeping.\n\n5. CHOOSE THE EXECUTION MODE. For each step in the plan, decide whether to implement it inline in this context or hand it to a subagent, and record the choice. A subagent isolates that step's context and survives a long build; inline avoids the per-step cold start and the overhead of dispatching and re-checking another agent's work. Repo size and expected build duration are examples of what might tip the decision, not a checklist. Steps run in order either way, so a subagent will not make the build finish sooner.\n\n6. ENUMERATE THE STEPS. List the plan's ordered steps by number and title, along with each one's commit message, so the execution loop that follows knows exactly how many steps there are and what order they run in.\n\nCORE RULES that hold for the rest of this run: follow the plan and do not change its requirements, designs or scope; do not ask questions — work autonomously from start to finish, using your best judgment to unblock yourself and noting every judgment call for the final summary; follow the project's guidelines; and do not touch code outside the plan's scope.\n\nReport the prerequisite check, the branch and working-tree state, the numbered list of steps with their chosen execution mode, and the Status write outcome if one was attempted."
+    ]
+
+    // Phase 2: the per-step execution loop. max_visits bounds the loop back from
+    // the 'more steps?' decision. The plan's step count is not known statically,
+    // so the bound is a generous ceiling rather than a number from the SKILL.
+    implement_step [
+        label="Phase 2: Implement The Next Step",
+        model="sonnet",
+        max_visits=20,
+        prompt="Implement exactly one step of the plan — the next one that has not been done yet — and nothing else.\n\nFIRST, RE-READ THAT STEP VERBATIM. Go back to the plan and read step N's changes description and its validation instructions literally, however those sections are labeled: `**Changes:**`, `### Changes`, `**Validation:**`, and so on. Do not summarize or paraphrase them. The literal text is the spec for what to change and what to validate.\n\nTHEN RE-EVALUATE THE EXECUTION MODE chosen for this step in Phase 1, and switch away from it if the build has changed — the step reads larger than planned, or the context is now long enough that compaction is a risk.\n\nINLINE MODE: make the code changes described in the step directly, and nothing outside the step's scope.\n\nSUBAGENT MODE: launch a subagent to implement the step. Give it the step's full description including goal, changes and implementation details; the relevant project guidelines and conventions; whatever context it needs about what prior steps already did; and the commit message to use. The subagent makes the code changes and modifies nothing outside the step's scope.\n\nDo not commit here — the next stage folds the changes into the commit stack. Report which step number and title you implemented, which mode you used and why, whether you switched from the Phase 1 choice, the files you changed, the step's commit message, and the step's validation instructions quoted verbatim for the validation stage that follows."
+    ]
+
+    // Commit the step's changes with the shared commit procedure, which decides
+    // between a new commit, an amend and a fixup rather than being told.
+    commit_step [import="../facto-commit-or-amend/workflow.fabro"]
+
+    validate_step [
+        label="Phase 2d: Validate The Step",
+        max_visits=60,
+        prompt="Run the validation instructions for the step that was just committed, exactly as the plan states them. This runs identically whether the step was implemented inline or in a subagent — you validate it yourself either way.\n\nExecute every command the step specifies: tests, linter, type checker, build, and anything else named. Perform any manual checks the step describes. Confirm each one actually passes rather than assuming it does; read the output.\n\nEnd this stage as SUCCEEDED when everything the step's validation asks for passes, and say which commands you ran and what they reported. End this stage as FAILED when any of it fails, and quote the failing command together with the relevant error output so the fix stage has something concrete to work from. If this step has already been through two fix attempts, end as SUCCEEDED anyway, state plainly that the step is being left failing after two attempts, and record it for the final summary — the run proceeds to the next step rather than stalling here."
+    ]
+
+    fix_step [
+        label="Phase 2e: Handle A Step Failure",
+        model="sonnet",
+        max_visits=40,
+        prompt="A step's validation failed. Fix the cause.\n\nBEFORE ANYTHING ELSE, LOOK FOR A DOCUMENTED FALLBACK. Search the plan file for a fallback path covering the failing area with `grep -i -E 'fallback|if this fails|alternative|in case of failure' <path-to-plan-file>`, substituting the actual plan file path, and also check for a Fallback sub-section sitting alongside the failing step's Validation section. If a specific fallback is documented, attempt it first and report the result. Only fall back to your own judgment when no documented fallback exists or the documented one also fails.\n\nOTHERWISE, read the error output carefully and fix the underlying issue. Use a subagent for the fix if it is non-trivial. Stay inside the failing step's scope — do not take the opportunity to change unrelated code.\n\nEnd this stage as SUCCEEDED when you have made a fix worth committing; the fix is then folded into the appropriate commit and the step is validated again. End this stage as FAILED when you have already tried twice on this step and cannot resolve it, or when the failure is outside the plan's scope to fix — say exactly what is failing and why, and the run moves on to the next step with the failure recorded for the summary."
+    ]
+
+    // Fold the fix into the commit it belongs to, then re-validate the step.
+    commit_fix [import="../facto-commit-or-amend/workflow.fabro"]
+
+    more_steps [
+        label="Phase 2f: More Steps?",
+        shape=tab,
+        max_visits=25,
+        prompt="Decide whether the plan has any steps left to implement.\n\nCompare the numbered list of steps enumerated in Phase 1 against the steps that have actually been implemented, committed and validated so far in this run.\n\nEnd this stage as FAILED when at least one step remains — name the next step by number and title — because failure is the signal that sends this run back to the implementation stage for that step. End this stage as SUCCEEDED only when every step in the plan has been implemented, committed and validated (including any step that was left failing after two fix attempts), because success is the signal that moves the run on to the final test plan. State which case applies and list any step that was left failing."
+    ]
+
+    test_plan [
+        label="Phase 3: Test Plan",
+        max_visits=3,
+        prompt="Run the plan's final validation, now that every step is implemented.\n\nLocate the plan's Verification or Test Plan section and RE-READ IT VERBATIM. Execute every checkbox in it, in order. Do not substitute a different test plan derived from memory or from your own summary of the plan — the plan's text is authoritative.\n\nThat normally means the full test suite, the linter, the type checker, the build, and any end-to-end or manual verification steps the plan names. Run each one and read its output.\n\nIf something fails, first search the plan for a documented fallback for the failing area with `grep -i -E 'fallback|if this fails|alternative|in case of failure' <path-to-plan-file>`, substituting the actual plan file path, and check for a Fallback sub-section co-located with that verification step. Attempt any documented fallback before treating the failure as unresolved.\n\nEnd this stage as SUCCEEDED when every verification step in the plan's Test Plan section passes, or when the only remaining failures have been through the fix stage twice already — in that case say so explicitly. End this stage as FAILED when something fails and has not yet been through a fix attempt, quoting the failing command and its error output. Either way, enumerate every verification step from the plan with its outcome: ran and passed, ran and failed, skipped, or deferred with a reason."
+    ]
+
+    fix_validation [
+        label="Phase 3: Fix Final Validation",
+        prompt="Final validation failed. Fix the issues so the plan's Test Plan passes.\n\nRead the failing output carefully and address the actual cause. Prefer folding each fix into the existing commit it belongs to rather than piling corrections on the end of the stack — the commit stage that follows handles that placement. Stay within the plan's scope.\n\nIf the failure has a documented fallback in the plan that has not been tried yet, try it before writing your own fix.\n\nReport what failed, what you changed to fix it, and which commit each fix belongs in."
+    ]
+
+    // Fold the final-validation fixes into the commits they belong to, then
+    // re-run the plan's test plan.
+    commit_final [import="../facto-commit-or-amend/workflow.fabro"]
+
+    // Design fidelity verification. The SKILL runs this as an opus subagent that
+    // invokes /facto:review-loop-design-impl; here it is the sub-workflow itself.
+    design_review [
+        import="../facto-review-loop-design-impl/workflow.fabro",
+        model="opus"
+    ]
+
+    // Code review loop over the whole stack of commits. Its own default cap of
+    // five review cycles applies unless the developer asked for a different one.
+    review [
+        import="../facto-review-loop-code/workflow.fabro",
+        model="opus"
+    ]
+
+    // Create or update the pull request for the finished stack.
+    pr [import="../facto-pr/workflow.fabro"]
+
+    summary [
+        label="Phase 4: Summary",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Report to the developer what this run actually did, using only what happened in the stages above. Do not invent a PR, a commit or a test result, and do not rehash the plan.\n\nCover, in this order:\n\n1. PR URL — the link to the pull request that was created or updated.\n2. REVIEW CYCLES — how many code-review iterations were needed and a brief list of what was addressed.\n3. VERIFICATION OUTCOMES — enumerate EVERY verification step from the plan's Test Plan section and give each one an explicit outcome: ran and passed, ran and failed, skipped, or deferred with a reason. Silent omission is not allowed; every verification step in the plan must appear here with one of those four labels.\n4. DESIGN FIDELITY — how the verification ran (a full comparison against a design mock, a sanity check because no mock exists, or a manual checklist because the UI could not be launched) and why. Give the per-screen result and every infeasible divergence: which screen, what could not be matched, why, and the closest approximation that shipped. Never drop a divergence silently. Link any manual checklist that was produced.\n5. EXECUTION MODE — which steps ran inline and which ran in a subagent, and any mid-build switches.\n6. DECISIONS AND PROBLEMS — the ambiguities, contradictions and judgment calls you made along the way, plus any step left failing after two fix attempts, so the developer can review them and change course if needed.\n\nKeep it concise — highlight what the developer needs to know."
+    ]
+
+    start -> before_starting
+    before_starting -> implement_step
+    implement_step -> commit_step
+    commit_step -> validate_step
+    validate_step -> fix_step [label="Validation failed", condition="outcome=failed"]
+    validate_step -> more_steps
+    fix_step -> commit_fix [label="Fix made", condition="outcome=succeeded"]
+    fix_step -> more_steps [label="Unresolved after two attempts"]
+    commit_fix -> validate_step
+    more_steps -> implement_step [label="More steps remain", condition="outcome=failed"]
+    more_steps -> test_plan
+    test_plan -> fix_validation [label="Final validation failed", condition="outcome=failed"]
+    test_plan -> design_review
+    fix_validation -> commit_final
+    commit_final -> test_plan
+    design_review -> review
+    review -> pr
+    pr -> summary
+    summary -> exit
+}

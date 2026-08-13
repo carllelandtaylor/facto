@@ -1,0 +1,150 @@
+digraph FactoSetupDesign {
+    graph [goal="Stand up evergreen design documentation for an existing app from its current state: collect the project-wide design docs, generate a device-accurate design spec and mock for every discoverable view, then index it all together"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // ---- Phase 1: Discover surfaces ----
+
+    // One shell pass that collects the repo facts every later stage needs.
+    // Always exits zero: a missing directory is a finding, not a failure.
+    repo_scan [
+        label="Phase 1: Scan The Repo",
+        shape=parallelogram,
+        max_retries=0,
+        script="set +e; echo '--- repo root ---'; git rev-parse --show-toplevel; echo '--- top-level entries ---'; ls -1; echo '--- javascript manifests ---'; find . -maxdepth 3 -name package.json -not -path '*/node_modules/*' -print; echo '--- swift ---'; find . -maxdepth 3 -name 'Package.swift' -print; find . -maxdepth 2 -name '*.xcodeproj' -print; echo '--- android ---'; find . -maxdepth 3 -name 'build.gradle' -print; find . -maxdepth 3 -name 'build.gradle.kts' -print; echo '--- flutter ---'; find . -maxdepth 3 -name 'pubspec.yaml' -print; echo '--- existing evergreen design docs ---'; ls -R docs/design 2>/dev/null || echo 'no docs/design tree yet'; echo '--- per-task design assets ---'; ls -1 facto-tasks/*/design-* 2>/dev/null || echo 'no facto-tasks design assets'; echo '--- project docs ---'; ls -1 *.md 2>/dev/null; ls -1 docs/*.md 2>/dev/null; echo 'scan complete'"
+    ]
+
+    discover_surfaces [
+        label="Phase 1: Discover Visual Surfaces",
+        prompt="Determine everything needed to proceed autonomously — never ask the developer any question in this workflow. Start with the visual surfaces. A SURFACE is a distinct rendering target with its own UI code, for example web, ios, android; a backend-only target with no visual output is not a surface and gets no design docs. Find them from the repo structure the scan just printed: look for top-level directories or workspace packages whose names or contents suggest a UI rendering target — web/, mobile/, ios/, android/, app/, frontend/, client/ and similar — then confirm each candidate by checking for framework indicators inside it: a package.json depending on React, Vue, Angular or Svelte; .swift files using SwiftUI; .kt files importing Compose; .dart files for Flutter. A directory that only names itself app/ but contains no UI framework is not a surface. Record each CONFIRMED surface together with its top-level source directory, and record the candidates you rejected and why, so the rejection is auditable. Project being documented: {{ goal }}"
+    ]
+
+    surface_commands [
+        label="Phase 1: Establish Run And Capture Commands",
+        prompt="For each confirmed surface, work out and then actually verify the three things later phases depend on. (1) LAUNCH — the exact command that brings the app up, including any emulator, simulator or dev server it needs. (2) INTERACT — how to drive its UI the way a real user would: Playwright for web, adb or the Android emulator tooling for Android, simctl or the iOS simulator tooling for iOS. (3) SCREENSHOT — how to capture the screen AT THE DEVICE NATIVE RESOLUTION, not a scaled or cropped image. The repo may already document all of this in a README, a CONTRIBUTING file or a CLAUDE.md; start there, but do not trust it — try every command you found and correct the ones that do not work. Also capture, per surface, the DEVICE PROFILE and the way to read element geometry as defined by the design-mock mechanics: pixel resolution and density, the derived logical size and device scale factor, and the command that dumps the live element bounds — adb shell wm size and adb shell wm density plus uiautomator dump on Android, the point size times scale plus the accessibility hierarchy on iOS, CSS pixels plus getBoundingClientRect on web. Phase 3 needs both the profile and the geometry method to build device-accurate mocks, so a surface whose profile you could not measure must be reported as such rather than guessed."
+    ]
+
+    existing_assets [
+        label="Phase 1: Find Existing Design Assets",
+        prompt="Find every existing design document or asset, repo-wide and per surface, that can inform the inventory and the evergreen docs. Common but non-exclusive places to look: docs/design/<surface>/design-system.md and anything else already under docs/design/; per-task design files such as facto-tasks/*/design-decisions.html and facto-tasks/*/design-mock.html; a style guide, brand or token file anywhere in the repo; and the theme source the code actually uses, for example globals.css, a Tailwind config, a Compose theme file or an iOS asset catalog. The theme source matters even when there is no written design system, because it becomes the token reference for the mocks. Record for each surface which of these exist and where, and state plainly which surfaces have no design system at all — for those, the values sampled from the running app become the source of truth later."
+    ]
+
+    create_inventory [
+        label="Phase 1: Create The Inventory File",
+        prompt="Create the inventory file that carries the findings through the rest of this workflow, and write into it everything collected so far. Resolve the task directory with the shared helper so every skill agrees on one location: run TASK_DIR=$(facto-helper.sh task-dir), then mkdir -p on the directory holding $TASK_DIR/design-inventory.md, and copy the Facto template from the setup-design skill — [facto] plugins/facto/skills/setup-design/template-inventory.md — to $TASK_DIR/design-inventory.md. Follow the template's own structure rather than inventing headings. Fill in: the repo root; every confirmed surface with its source directory; per surface the launch, interact and screenshot commands you verified, the device profile you measured, and the geometry-reading method; and the existing design assets you found, with their paths. Leave the per-view sections empty for now — Phase 2 fills them. Report the absolute path of the inventory file so every later stage writes to the same place."
+    ]
+
+    // ---- Phase 2: Discover views (one pass per surface) ----
+
+    // The loop returns here, once per surface. max_visits bounds it well above
+    // the number of surfaces a real repo has.
+    launch_surface [
+        label="Phase 2a: Launch The Surface",
+        max_visits=6,
+        prompt="Pick the next surface from the inventory that has not been swept yet, and bring its app up using the launch command verified in Phase 1. Confirm it is actually running and reachable — the dev server responds, the simulator or emulator shows the app, the first screen renders — rather than assuming the launch command succeeded. If the launch fails, fix what you can (install dependencies, start the emulator, free the port) and try again; if it still fails, record that this surface could not be launched and say which views will therefore be unverifiable. State which surface you are now sweeping, so the later stages know which one they are working on."
+    ]
+
+    discover_views [
+        label="Phase 2b: Discover Views From Source",
+        prompt="Read the surface's source code and find all views. A VIEW is an addressable UI surface — a place the user can be, or a layer that appears over a place — and it is one of three types: a SCREEN, a destination or route the user navigates to; a REGION, persistent chrome composed into many screens such as a nav bar, tab bar, side panel or header, documented once; an OVERLAY, a transient surface over a host view such as a modal, bottom sheet, popover, toast or menu, also documented once. Work from the router or navigation graph, the screen or page directory, and the component tree. For every view you find in code, ENUMERATE EVERY STATE it can be in — default or loaded, loading, empty, error, and any edge case the source reveals such as a permission-denied or offline branch. Phase 3 must spec all of them, not just the happy path, so a state that exists in code but is inconvenient to reach still belongs in this list. Then try to navigate to each view in the live app to verify that it exists and to see how it behaves and looks. Record for each view: its surface, its slug (the view role name in kebab case), its type tag, its states, and for overlays and regions the invoked-from or appears-in list."
+    ]
+
+    capture_states [
+        label="Phase 2b: Capture Every Reachable State",
+        prompt="Drive the live app into every state you enumerated and capture it. You are allowed and encouraged to take app actions that change back-end data when that is what it takes to reach a view or a state: create a new user to see the first-run and empty states, delete a record to empty a list, cut the network or point the app at a dead endpoint to force an error, throttle it to catch the loading state. For each state you reach, take ONE screenshot at the device native resolution and save it as <task dir>/inventory/<view-slug>--<state>.png, and while you are on that state capture the ELEMENT GEOMETRY using the method established in Phase 1 — read the bounds from the live accessibility or DOM tree, never estimate them from the screenshot. Also sample the screenshot at known points to confirm the colors, because elevation tints and alpha composites render as neither token hex. These screenshots are the per-state verification targets that Phase 3 diffs against, so a missing screenshot means an unverifiable state. List explicitly every view and every state you could NOT drive the app into, with the reason, rather than quietly dropping it."
+    ]
+
+    fill_inventory [
+        label="Phase 2c: Fill In The Inventory",
+        prompt="Write everything discovered for this surface into the appropriate sections of $TASK_DIR/design-inventory.md, following the template structure. Per view record: surface, slug, type tag, the invoked-from or appears-in list for overlays and regions, the source files that define it, every state, and for each state whether it was captured live (with the screenshot path) or could not be reached (with the reason). Keep the file the single shared record — later phases read it rather than re-deriving anything — so leave nothing in your head that a subsequent stage will need."
+    ]
+
+    surface_sweep_check [
+        shape=tab,
+        label="Phase 2: All Surfaces Swept?",
+        prompt="Decide whether the view sweep is finished. Compare the list of confirmed surfaces in the inventory against the surfaces that now have their views, states, screenshots and geometry filled in. End this stage as SUCCEEDED when every confirmed surface has been swept, or when the only remaining ones were recorded as impossible to launch. End this stage as FAILED when at least one confirmed surface has not been swept yet, and name the next one to sweep, so the workflow loops back and launches it. Do not modify any file in this stage."
+    ]
+
+    // ---- Phase 3: Create design mocks ----
+
+    mock_brief [
+        label="Phase 3: Brief The Calibration Mock",
+        prompt="The full build-render-diff-review loop is expensive per state, so settle the shared decisions once on ONE CALIBRATION VIEW per surface before touching the rest. Choose that calibration view now: prefer a screen that is typical of the surface — real chrome, real type, real color, several states — over a trivial or atypical one. Then write the brief for the mock mechanics that run next, stating the three things they treat as given. (1) DESTINATION DIRECTORY — the view folder in the evergreen tree, docs/design/<surface>/views/<view>/, with shared fonts at docs/design/<surface>/views/assets/fonts/. (2) FLOW OR STATE LIST — every state of the calibration view from the inventory, each paired with its saved screenshot at <task dir>/inventory/<view-slug>--<state>.png, which is the diff target for that state. (3) DESIGN CONTENT — this view already exists in a running app, so the content is not invented: it is what the app renders, built device-accurately from the measured device profile, the geometry read from the live tree, the tokens taken from the surface theme source and confirmed by sampling, and the app's own bundled font files. Pass the device profile and the geometry method verbatim from the inventory. Do not build the mock in this stage; only brief it."
+    ]
+
+    calibration_mock [import="../facto-ref-design-mock/workflow.fabro"]
+
+    calibration_baseline [
+        label="Phase 3: Record The Calibration Baseline",
+        prompt="The calibration view is now proven against the live app. Extract from it the decisions the remaining views reuse, so the expensive loop does not get re-litigated per view. Write into the inventory: the DEVICE PROFILE that ended up correct — logical width and height, device scale factor, and the exact headless render flags that reproduced the app pixels; the TOKEN MAPPING — which token name maps to which value, which values were read from a design system or theme source and which were sampled from the screenshot because no reference existed; the FONTS — which font files were copied into the assets directory and the @font-face declarations that matched the app metrics; and the ACCEPTED DIVERGENCES that are structural rather than per-view, such as OS chrome and text rasterization differences between the browser and the native toolkit. Also note anything that fought you during calibration and how it was resolved. Remaining views start from this baseline rather than rediscovering it."
+    ]
+
+    // The per-view loop returns here. max_visits bounds it well above the number
+    // of views a first bootstrap will realistically document in one run.
+    view_brief [
+        label="Phase 3a: Brief The Next View",
+        max_visits=10,
+        prompt="Pick the next view from the inventory that has no mock yet, and brief the mock mechanics for it, reusing the calibration baseline rather than re-deriving it. State: the destination directory docs/design/<surface>/views/<view>/; the view's type tag and, for an overlay or region, its host or appears-in list; EVERY state from the inventory, each paired with its saved screenshot at <task dir>/inventory/<view-slug>--<state>.png as its diff target; and for each state that could NOT be driven live, say so explicitly and instruct that it be built from the source code and the design system and marked UNVERIFIED in the output, because an unverified state must never be presented as proven. Carry the calibration baseline forward verbatim: the device profile, the render flags, the token mapping, the fonts and the structural accepted divergences. When every view in the inventory already has a mock, say so and change nothing."
+    ]
+
+    view_mock [import="../facto-ref-design-mock/workflow.fabro"]
+
+    state_review [
+        label="Phase 3a: Adversarial Review Of Each State",
+        max_visits=4,
+        prompt="Adversarially review this view on TWO independent axes, one reviewer each, and do not merge them into a single pass — they catch different failures. REVIEWER ONE compares the rendered mock against the live screenshot for that state: structure, position, spacing, color, type, and the per-region diff, judging only the app's own content and treating OS chrome as out of scope. REVIEWER TWO checks that the values in the mock TRACE TO SOURCE: every token maps to the theme or design-system value it claims, every measurement traces to geometry read from the live tree rather than eyeballed, every font is the app's own bundled file, and every string is the app's real copy. Run both as subagents, give them the mock, the harnesses, the screenshots and the source paths, and tell them to be genuinely critical. Then judge each finding yourself. End this stage as SUCCEEDED only when BOTH reviewers pass on every state of this view, with the unverified states clearly marked as unverified rather than claimed as proven. End this stage as FAILED while either reviewer has a valid outstanding finding, listing exactly which state failed which axis, so the mock is revised and re-reviewed."
+    ]
+
+    revise_states [
+        label="Phase 3a: Revise The Failing States",
+        prompt="Both reviewers reported findings; resolve the valid ones now. Work from the specific per-state, per-region findings rather than re-doing the whole view: fix the largest structural, color and type mismatches before chasing small ones, and correct any value that does not trace to source by replacing it with the value that does. Edit the mock and its harnesses in place — they are self-contained, so editing never breaks a build — then re-serve over HTTP and re-render at the device scale factor before handing back for another review round. Never resolve a finding by relaxing the acceptance bar, by deleting the state, or by silently dropping the unverified marker from a state that was never proven live. Record, per finding, whether you addressed it and how, or why you judged it invalid."
+    ]
+
+    views_remaining [
+        shape=tab,
+        label="Phase 3: All Views Mocked?",
+        prompt="Decide whether the mock pass is finished. Compare every view in the inventory, across every surface, against the views that now have a reviewed mock with one harness per state. End this stage as SUCCEEDED when every view has one, counting states built from source and marked unverified as done. End this stage as FAILED when at least one view still has no mock, and name the next view and surface to build, so the workflow loops back. Do not modify any file in this stage."
+    ]
+
+    design_system [import="../facto-ref-design-system/workflow.fabro"]
+
+    // ---- Phase 4: Write the index ----
+
+    write_index [
+        label="Phase 4: Write The Index",
+        prompt="Create docs/design/index.md from the Facto template and fill it in so it lists everything this run produced. Copy [facto] plugins/facto/skills/setup-design/template-index.md to docs/design/index.md, then follow the template's own instructions for the format. The index is the entry point for discovering design docs — an agent or developer looking for what already exists starts here — so it must be complete: one section per surface, listing that surface's overall design docs such as design-system.md and any whole-surface file, and every view spec produced under views/. Use the relative link forms the evergreen layout fixes: <surface>/views/<view>/<view>.html for a view spec, and <surface>/<doc> for a surface-wide doc. If an index already existed before this run, merge rather than clobber: keep entries for anything already listed that this run did not touch. Verify every link resolves on disk before finishing, and report any view in the inventory that has no index entry."
+    ]
+
+    // ---- Phase 5: Create PR ----
+
+    pr [import="../facto-pr/workflow.fabro"]
+
+    report [
+        shape=tab,
+        fidelity="summary:high",
+        label="Report",
+        prompt="Report what this run actually produced, using only what happened in the stages above and inventing nothing. Give, in this order: the surfaces confirmed, each with its source directory, and any candidate rejected as not a surface; the launch, interact and screenshot commands and the device profile established per surface; the absolute path of the inventory file; every view documented, with its surface, type tag and states; which states were proven against a live screenshot and which were built from source and marked unverified, plus every view or state that could not be reached at all and why; the calibration view per surface and the baseline it settled; the accepted divergences recorded, such as OS chrome, data differences and text rasterization; the paths of the view specs and harnesses written under docs/design/; the state of docs/design/index.md; and the pull request that was opened. Close by naming what a follow-up run would need to cover, which is the unreached views and states."
+    ]
+
+    start -> repo_scan
+    repo_scan -> discover_surfaces -> surface_commands -> existing_assets -> create_inventory
+    create_inventory -> launch_surface
+    launch_surface -> discover_views -> capture_states -> fill_inventory -> surface_sweep_check
+    surface_sweep_check -> mock_brief [label="All surfaces swept", condition="outcome=succeeded"]
+    surface_sweep_check -> launch_surface [label="Next surface"]
+
+    mock_brief -> calibration_mock
+    calibration_mock -> calibration_baseline -> view_brief
+    view_brief -> view_mock -> state_review
+    state_review -> views_remaining [label="Both reviewers pass", condition="outcome=succeeded"]
+    state_review -> revise_states [label="Fix findings"]
+    revise_states -> state_review
+    views_remaining -> design_system [label="Every view mocked", condition="outcome=succeeded"]
+    views_remaining -> view_brief [label="Next view"]
+
+    design_system -> write_index -> pr
+    pr -> report
+    report -> exit
+}

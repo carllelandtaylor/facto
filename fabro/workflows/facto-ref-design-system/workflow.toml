@@ -1,0 +1,10 @@
+_version = 1
+
+[workflow]
+graph = "workflow.fabro"
+
+# Mirrors the graph goal so `fabro workflow list` shows a description.
+# Goal precedence is CLI --goal > [run].goal > graph attribute, so this must
+# stay identical to the graph's goal= attribute.
+[run]
+goal = "Maintain a project's evergreen design docs under docs/design/: the directory layout and index, the view model, the view specs, and the upsert sync routine"

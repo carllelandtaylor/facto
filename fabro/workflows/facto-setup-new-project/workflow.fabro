@@ -1,0 +1,285 @@
+digraph FactoSetupNewProject {
+    graph [goal="Plan and set up a brand-new project from scratch: interview the developer to define the problem, users, features, UI design and tech stack, then produce PRODUCT-REQUIREMENTS.md and TECHNICAL-DESIGN.md as the project's foundation"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // ---- Phase 1: Understanding the Problem ----
+    // Pure listening. Three questions, asked one at a time, never batched.
+
+    ask_problem [
+        shape=hexagon,
+        question_type="freeform",
+        label="Let's plan out your new project. First, tell me about the problem you're trying to solve. What pain point or need does this address, and why does it need to exist?"
+    ]
+
+    absorb_problem [
+        label="Phase 1: The Problem",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="The developer's answer is in context under `human.gate.ask_problem.answer` — read it there before doing anything else.\n\nThis phase is about gathering context — listen, do not propose solutions yet. Record what they told you about THE PROBLEM: the problem being solved, the pain points users experience today, and why this needs to exist at all. Play it back in a few sentences so they can correct you, and note anything that is still vague, because the next questions can pick it up.\n\nDo not invent detail they did not give you, and do not start suggesting features — features come in Phase 2. Keep it to a short, specific summary."
+    ]
+
+    ask_users [
+        shape=hexagon,
+        question_type="freeform",
+        label="Who specifically is experiencing this problem? What does a typical user look like, and can you give me an example or two of people who fit that profile?"
+    ]
+
+    absorb_users [
+        label="Phase 1: Who It's For",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="The developer's answer is in context under `human.gate.ask_users.answer` — read it there before doing anything else.\n\nRecord WHO THIS IS FOR: the target user, their characteristics, their context and constraints, and the concrete examples of people who fit the profile. If they described more than one kind of user, name each one separately and note which is primary.\n\nStill no solutions. Play back what you heard in a few sentences and note which characteristics look like they will drive product decisions later."
+    ]
+
+    ask_success [
+        shape=hexagon,
+        question_type="freeform",
+        label="What would success look like for those users? When they use this, what are they actually trying to get done, and how would you know it worked?"
+    ]
+
+    absorb_success [
+        label="Phase 1: What Success Looks Like",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="The developer's answer is in context under `human.gate.ask_success.answer` — read it there before doing anything else.\n\nRecord WHAT SUCCESS LOOKS LIKE: the primary goals, the jobs users are trying to get done, and what a successful outcome looks like from the user's side rather than the system's.\n\nThen consolidate all of Phase 1 into one tight brief — the problem, the users, and the goals — because everything proposed from here on has to tie back to it. Flag any place where the three answers pull in different directions, since that is worth resolving before proposing features."
+    ]
+
+    // ---- Phase 2: Features & Solutions ----
+    // Collaborative. Lead with recommendations, not open questions.
+
+    propose_features [
+        label="Phase 2: Propose Features",
+        thread_id="setup-new-project",
+        fidelity="full",
+        max_visits=6,
+        prompt="Propose what the product should DO, based on the problems, pain points and goals from Phase 1. Lead with recommendations — do not ask open-ended questions about what they want built.\n\nFor each proposal, name the feature, say which Phase 1 problem or goal it addresses, and explain the rationale in the form 'to solve [problem], we could [option A] or [option B]'. Offer genuine options wherever two reasonable approaches solve the same problem in different ways, and describe how each one would feel to use, not just what it is called.\n\nMake the trade-offs explicit: simplicity versus power, scope versus timeline, doing one thing well versus covering more ground. Every feature must trace back to something from Phase 1 — if you catch yourself proposing something that does not, drop it or say plainly that it is speculative.\n\nPresent this as a proposal for discussion, not a decision."
+    ]
+
+    ask_features [
+        shape=hexagon,
+        question_type="freeform",
+        max_visits=8,
+        label="What do you think about these? Anything missing, anything that feels unnecessary, and where would you go with the options I offered?"
+    ]
+
+    refine_features [
+        label="Phase 2: Discuss And Decide Together",
+        thread_id="setup-new-project",
+        fidelity="full",
+        max_visits=8,
+        prompt="The developer's reaction is in context under `human.gate.ask_features.answer` — read it there before doing anything else.\n\nBuild on what they said rather than restating your proposal. Where they liked something, dig deeper — what exactly does it do, what are the edges of it, what does it not do. Where they did not, pivot: understand the objection and propose a different way to solve the same underlying problem. Where they raised something new, work out which Phase 1 problem it serves.\n\nWork through any trade-off they surfaced explicitly, giving your recommendation and the reason for it. Then present the current state of the feature set and say what you think is still unresolved."
+    ]
+
+    features_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Is the feature set settled enough to prioritize, or should we keep working on it?"
+    ]
+
+    prioritize_features [
+        label="Phase 2: Prioritize",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="Produce the final feature list with priorities. Distinguish MUST-HAVES for a first version from NICE-TO-HAVES that can wait, and say why each one sits where it does. For every feature, state the Phase 1 problem or goal it ties back to; if a feature does not tie back to one, either cut it or move it to nice-to-have and say so.\n\nWhere the developer's decisions imply something is out of scope for now, capture that explicitly rather than leaving it unsaid — it becomes the Out of Scope section of the requirements document. Present the prioritized list plainly so it can be reviewed at a glance."
+    ]
+
+    // ---- Phase 3: Design ----
+
+    propose_screens [
+        label="Phase 3: Propose Screens And Navigation",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="Based on the agreed feature list, propose how the product should look and feel — starting with structure. Lead with a recommendation.\n\nPropose the set of screens or pages the app should have and how the user moves between them. Offer two or three structural options where that is reasonable — for example a single-page layout versus separate screens, or a sidebar-driven app versus a linear flow — and describe what each one would actually look like in use, so the choice is concrete rather than abstract.\n\nExplain the rationale behind your recommended structure: which features drive it, which user journeys it makes short, and what it costs. Then ask whether it feels right and whether they would add, remove or restructure anything."
+    ]
+
+    ask_screens [
+        shape=hexagon,
+        question_type="freeform",
+        max_visits=8,
+        label="Does this structure feel right? Would you add, remove, or restructure any of these screens — and which of the structural options do you prefer?"
+    ]
+
+    screen_detail [
+        label="Phase 3: Screen-Level Detail",
+        thread_id="setup-new-project",
+        fidelity="full",
+        max_visits=8,
+        prompt="The developer's answer is in context under `human.gate.ask_screens.answer` — read it there before doing anything else.\n\nAdopt their structural decision, then go screen by screen. For each screen describe what the user would SEE and what they would be able to DO: the specific lists, forms, buttons and controls that make sense there, and what happens when the user takes each key action — what changes, what they land on next, what feedback they get.\n\nWhere there are meaningful alternatives, present them as options with a recommendation — for example drag-and-drop reordering versus a simpler sort control — and say which you would pick and why. Be specific enough that someone could sketch the screen from your description; vague descriptions produce vague requirements."
+    ]
+
+    ask_screen_detail [
+        shape=hexagon,
+        question_type="freeform",
+        label="How does that land? Tell me what to change on any screen — content, controls, what happens on the key actions — and which way you'd go on the options I offered."
+    ]
+
+    layout_states [
+        label="Phase 3: Layout, Hierarchy, States And Edge Cases",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="The developer's answer is in context under `human.gate.ask_screen_detail.answer` — read it there before doing anything else.\n\nApply their feedback, then finish the design in two passes.\n\nLAYOUT AND INFORMATION HIERARCHY. For each screen, suggest how the content should be organized, what should be most prominent and what should be secondary, and why that ordering serves the job the user is doing there. Propose the shared elements — navigation, sidebars, headers — and exactly what goes in each.\n\nSTATES AND EDGE CASES. Suggest how empty states, loading, errors and success feedback should work on each screen, including the actual copy where it matters. Propose behavior at the boundaries: too many items, very long text, no permission, slow or failed network, first run with no data at all.\n\nPresent the complete design so it can be reviewed as a whole."
+    ]
+
+    design_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Is the design settled enough to write the product requirements, or should we keep iterating on the screens?"
+    ]
+
+    // ---- Phase 4: Product Requirements Document ----
+
+    write_prd [
+        label="Phase 4: Write PRODUCT-REQUIREMENTS.md",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="Write PRODUCT-REQUIREMENTS.md at the root of the new project, capturing everything decided in Phases 1 to 3. Write it for a future session that was not part of this conversation — every decision must be legible without the transcript.\n\nInclude these sections, in this order: The Problem — why we are building this; Who This Is For — the target users and their characteristics; What Users Want to Accomplish — goals and jobs to be done; Product Overview; Core Features — with their priorities and the problem each one solves; Data Structure — the logical models, described in product terms rather than code; Screens and Views — each screen's purpose, content and interactions; User Workflows — the end-to-end paths through the product; Success Criteria; Future Enhancements; Design Principles; and Out of Scope.\n\nUse only what was actually decided. Where something was deliberately left open, say it is open rather than inventing a decision. Report the absolute path of the file you wrote."
+    ]
+
+    prd_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        max_visits=5,
+        review_target="write_prd",
+        label="I've written PRODUCT-REQUIREMENTS.md. Does it capture what we decided — the problem, the users, the features and their priorities, and the screens?"
+    ]
+
+    ask_prd_feedback [
+        shape=hexagon,
+        question_type="freeform",
+        label="Tell me what to change in PRODUCT-REQUIREMENTS.md — anything wrong, missing, mis-prioritized, or in the wrong section."
+    ]
+
+    revise_prd [
+        label="Phase 4: Revise The Requirements",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="The developer's feedback is in context under `human.gate.ask_prd_feedback.answer` — read it there before doing anything else.\n\nApply it to PRODUCT-REQUIREMENTS.md. Make the specific edits they asked for and the changes those edits imply elsewhere in the document — a feature moved to nice-to-have has to move in the priorities and possibly into Out of Scope too. Do not rewrite sections they did not raise.\n\nIf a piece of feedback conflicts with something decided earlier, say so and ask which way to go rather than silently picking one. Report what you changed, section by section."
+    ]
+
+    // ---- Phase 5: Technical Decisions ----
+
+    propose_stack [
+        label="Phase 5: Application Type And Tech Stack",
+        thread_id="setup-new-project",
+        fidelity="full",
+        max_visits=5,
+        prompt="Now discuss how to BUILD this. Lead with a recommendation and explain the trade-offs; do not ask them to pick from a blank page.\n\nAPPLICATION TYPE. Recommend web, mobile, desktop, CLI or something else, driven by who the users are and where they will actually be when they use it.\n\nTECH STACK. Recommend a concrete stack based on the product requirements, with the rationale for each choice: framework, styling, state management, data storage, and authentication. Say what each choice buys and what it costs, and name the credible alternative you rejected and why. If the developer has stated preferences, start from those and say where you would push back.\n\nFREEMIUM GOTCHAS — do this BEFORE anything is finalized. For every library, framework or hosted service you are recommending, flag the things that only surface after adoption: attribution requirements such as watermarks or 'powered by' badges, free-tier usage limits and what happens when you cross them, licensing restrictions including copyleft and commercial-use terms, and pricing that starts at zero and does not stay there. List them explicitly per dependency, and say for each whether you think it is acceptable and why. If a recommendation has none, say so.\n\nPRESENT ALL OF THIS AND STOP. The developer decides whether the gotchas are acceptable — do not commit to a stack on their behalf."
+    ]
+
+    ask_stack [
+        shape=hexagon,
+        question_type="freeform",
+        label="What do you think of this stack? Tell me anything you'd swap out, any strong preferences you have, and how the freemium limits and attribution requirements I flagged look to you."
+    ]
+
+    confirm_gotchas [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Are the freemium limits, attribution requirements and licensing terms on these dependencies acceptable, or should I rework the stack to avoid them?"
+    ]
+
+    project_structure [
+        label="Phase 5: Project Structure",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="The developer's answers are in context under `human.gate.ask_stack.answer` — read it there before doing anything else.\n\nThe stack is settled. Now propose how the code should be ORGANIZED: the top-level directory layout, what lives where, and the main components or modules and what each one is responsible for. Tie the structure to the feature list — someone should be able to look at the layout and see where a given feature's code goes.\n\nState the conventions that come with it: naming, where tests live, where shared code goes, and how the boundaries between modules are meant to hold. Recommend, explain your reasoning, and note anything you are unsure about."
+    ]
+
+    // ---- Phase 6: Technical Design Document ----
+
+    ask_facto [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Will this project use Facto's GitHub Issues and Project tracker? If yes I'll wire it up now — that writes .facto/settings.json and enables the tracker behavior in plan-implementation, implement, pr and task-start. If no, I'll record 'Facto config: none' so future sessions don't re-ask."
+    ]
+
+    // The developer opted in, so run the setup here rather than leaving them a
+    // manual instruction. Without .facto/settings.json the tracker behaviors in
+    // the rest of the pipeline silently no-op.
+    setup_facto [import="../facto-setup-facto/workflow.fabro"]
+
+    write_tdd [
+        label="Phase 6: Write TECHNICAL-DESIGN.md",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="Write TECHNICAL-DESIGN.md at the root of the new project, capturing everything decided in Phase 5.\n\nInclude these sections, in this order: Tech Stack — every choice with its rationale, and the freemium, attribution and licensing constraints the developer accepted; Project Structure — the file organization; Data Models — in code form, matching the chosen stack; Implementation Phases — a step-by-step plan where each phase leaves the system working; Development Workflow; Technical Considerations; Future Technical Enhancements; and Development Principles.\n\nUnder DEVELOPMENT WORKFLOW you must record the Facto tracker decision, and which of the two cases applies depends on what happened just before this stage. IF THE FACTO SETUP RAN, record that the project uses Facto's GitHub Issues and Project tracker, that `.facto/settings.json` is written, and what that enables — the tracker behavior in `facto:plan-implementation`, `facto:implement`, `facto:pr` and `task-start --issue`. IF IT DID NOT RUN because the developer declined, record the line `Facto config: none` so future agents do not re-ask.\n\nUse only what was actually decided. Report the absolute path of the file you wrote."
+    ]
+
+    tdd_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        max_visits=5,
+        review_target="write_tdd",
+        label="I've written TECHNICAL-DESIGN.md. Does the stack, structure and phased implementation plan look right to you?"
+    ]
+
+    ask_tdd_feedback [
+        shape=hexagon,
+        question_type="freeform",
+        label="Tell me what to change in TECHNICAL-DESIGN.md — wrong choices, a structure that won't hold, implementation phases that are too big or out of order, or anything missing."
+    ]
+
+    revise_tdd [
+        label="Phase 6: Revise The Technical Design",
+        thread_id="setup-new-project",
+        fidelity="full",
+        prompt="The developer's feedback is in context under `human.gate.ask_tdd_feedback.answer` — read it there before doing anything else.\n\nApply it to TECHNICAL-DESIGN.md, along with the changes it implies elsewhere in the document — swapping a data layer changes the data models, the project structure and probably the implementation phases too. Do not rewrite sections they did not raise.\n\nIf a change reopens a freemium, attribution or licensing question, flag it explicitly rather than quietly adopting a dependency whose terms were never reviewed. Report what you changed, section by section."
+    ]
+
+    summary [
+        label="Summary",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Report what this run actually produced, using only what happened in the stages above.\n\nGive, in this order: the absolute path of PRODUCT-REQUIREMENTS.md and a one-line description of the product it describes; the absolute path of TECHNICAL-DESIGN.md and the headline stack choice; the must-have feature list for the first version; the Facto tracker decision — wired up, or `Facto config: none`; and anything left deliberately open that the first implementation session will need to resolve.\n\nThen state the next step: the foundation documents exist, and building a feature from here goes through `/facto:plan-implementation` followed by `/facto:implement`. Do not claim any code was written — this workflow plans and sets up the project, it does not implement it."
+    ]
+
+    start -> ask_problem
+    ask_problem -> absorb_problem [freeform=true]
+    absorb_problem -> ask_users
+    ask_users -> absorb_users [freeform=true]
+    absorb_users -> ask_success
+    ask_success -> absorb_success [freeform=true]
+
+    absorb_success -> propose_features
+    propose_features -> ask_features
+    ask_features -> refine_features [freeform=true]
+    refine_features -> features_gate
+    features_gate -> prioritize_features [label="[A] Settled - prioritize the features"]
+    features_gate -> ask_features [label="[B] Keep iterating on the feature set"]
+
+    prioritize_features -> propose_screens
+    propose_screens -> ask_screens
+    ask_screens -> screen_detail [freeform=true]
+    screen_detail -> ask_screen_detail
+    ask_screen_detail -> layout_states [freeform=true]
+    layout_states -> design_gate
+    design_gate -> write_prd [label="[A] Design is settled - write the requirements"]
+    design_gate -> ask_screens [label="[B] Keep iterating on the design"]
+
+    write_prd -> prd_gate
+    prd_gate -> propose_stack [label="[A] Approve PRODUCT-REQUIREMENTS.md"]
+    prd_gate -> ask_prd_feedback [label="[B] Revise PRODUCT-REQUIREMENTS.md"]
+    ask_prd_feedback -> revise_prd [freeform=true]
+    revise_prd -> prd_gate
+
+    propose_stack -> ask_stack
+    ask_stack -> confirm_gotchas [freeform=true]
+    confirm_gotchas -> project_structure [label="[A] The terms are acceptable - continue"]
+    confirm_gotchas -> propose_stack [label="[B] Rework the stack to avoid them"]
+
+    project_structure -> ask_facto
+    ask_facto -> setup_facto [label="[A] Yes - wire up the Facto tracker now"]
+    ask_facto -> write_tdd [label="[B] No - record Facto config none"]
+    setup_facto -> write_tdd
+
+    write_tdd -> tdd_gate
+    tdd_gate -> summary [label="[A] Approve TECHNICAL-DESIGN.md"]
+    tdd_gate -> ask_tdd_feedback [label="[B] Revise TECHNICAL-DESIGN.md"]
+    ask_tdd_feedback -> revise_tdd [freeform=true]
+    revise_tdd -> tdd_gate
+
+    summary -> exit
+}

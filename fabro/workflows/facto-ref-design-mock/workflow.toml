@@ -1,0 +1,10 @@
+_version = 1
+
+[workflow]
+graph = "workflow.fabro"
+
+# Mirrors the graph goal so `fabro workflow list` shows a description.
+# Goal precedence is CLI --goal > [run].goal > graph attribute, so this must
+# stay identical to the graph's goal= attribute.
+[run]
+goal = "Produce a Figma-style design-mock HTML file from the Facto template: create a per-feature working copy, fill in its tokens, frames and bands, then serve, inspect and prove it"

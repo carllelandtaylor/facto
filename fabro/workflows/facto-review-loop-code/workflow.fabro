@@ -1,0 +1,79 @@
+digraph FactoReviewLoopCode {
+    graph [goal="Iteratively review and improve a stack of commits, running a review/fix/validate cycle while findings are critical or important and stopping once only minor ones remain"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    gather_inputs [
+        label="Gather Loop Inputs",
+        prompt="Assemble everything the review loop needs before the first cycle. Use whatever the caller already supplied and only gather what is missing.\n\nYou need five things. THE STACK OF COMMITS under review — the base ref and HEAD; if the caller did not give you a base ref, derive it with `git merge-base HEAD origin/main`, falling back to `git merge-base HEAD main`, and list the stack with `git log <base>..HEAD --oneline`. THE REQUIREMENTS OR GOALS these changes are meant to achieve, from the caller's context, the plan being implemented, or the Context lines in the commit messages. VALIDATION STEPS — the exact commands to run for tests, linting, type checking and build; find them in `package.json` scripts, a `Makefile`, `Cargo.toml` and the project's CI configuration, and prefer the commands CI itself runs. PROJECT GUIDELINES — read every applicable `CLAUDE.md`, including nested ones covering the changed directories. OPTIONALLY, product requirements or design documents, if the caller supplied them, for product-level review.\n\nAlso record the maximum-cycles guardrail: use the cap the caller specified, or 5 when none was given.\n\nReport the base ref, the commit stack, the requirements, the exact validation commands, the guideline files you read, and the cycle cap."
+    ]
+
+    // The loop returns here. max_visits bounds it at the default cycle cap of 5.
+    review [
+        label="Phase 1: Review",
+        max_visits=5,
+        prompt="Review the full diff of the stack under review. Launch a subagent with `model: \"opus\"` to do the reviewing, so the diff and the changed files stay out of this workflow's context; instruct it to read `git diff <base>..HEAD` and every changed file in full before judging anything.\n\nThe subagent evaluates the changes against all of: CORRECTNESS — bugs, logic errors, off-by-one errors, null and undefined handling, race conditions. REQUIREMENTS — does the code actually achieve what the requirements and goals specify? PROJECT CONVENTIONS — naming, patterns, file organization, and style consistency with the existing codebase. ERROR HANDLING — missing error cases, swallowed errors, unhelpful error messages. EDGE CASES — empty inputs, boundary values, unexpected types, concurrent access. SECURITY — injection, authorization gaps, secrets committed in code, and the OWASP top 10. PERFORMANCE — obvious inefficiencies such as N+1 queries, unnecessary re-renders, unbounded loops. TESTS — are new and changed behaviors covered, and do the tests actually test the right thing?\n\nThe subagent must scope its feedback to the changes under review and sort every item into exactly one of two lists. IN-SCOPE: issues directly related to the changes being reviewed — bugs in new or modified code, requirements gaps in new or modified code, style issues in new or modified code. OUT-OF-SCOPE: pre-existing problems, improvements to unchanged code, and consistency issues in files that are not being modified; these are still noted but will NOT be fixed.\n\nEvery item in either list carries: FILE AND LOCATION — where the issue is; ISSUE — what is wrong; SUGGESTION — how to fix it; SEVERITY — critical, important, or minor. Severity must be assigned deliberately rather than as a formality, because severity is what decides whether another review cycle runs.\n\nReport both lists in full, and state which cycle number this is against the cycle cap."
+    ]
+
+    triage [
+        label="Phase 2: Decide Whether To Continue",
+        shape=tab,
+        prompt="Classify the review result. Evaluate the IN-SCOPE list only — out-of-scope findings never gate continuation, they are reported and never fixed.\n\nOUTCOME 1 — there are no in-scope findings at all. The loop is done; nothing needs fixing. End this stage as FAILED so the workflow skips straight to the closing report.\n\nOUTCOME 2 — one or more in-scope findings are critical or important. Another full cycle should follow the fixes, unless that would exceed the maximum-cycles guardrail. End this stage as SUCCEEDED and state explicitly that this is a CONTINUING CYCLE, or, when the cap is about to be reached, that it is a CAPPED FINAL CYCLE which must be judged the way a terminal cycle is.\n\nOUTCOME 3 — in-scope findings exist but every single one is minor. This cycle is the final cycle; no further full cycle runs, whether or not anything gets fixed. End this stage as SUCCEEDED and state explicitly that this is a TERMINAL CYCLE.\n\nOutput the classification — outcome number, cycle mode, and the count of in-scope findings by severity — so the fix step knows which mode it is running in."
+    ]
+
+    fix [
+        label="Phase 3: Fix",
+        prompt="Fix the review findings. Fix items from the IN-SCOPE list ONLY. Do NOT fix out-of-scope items; they are reported to the developer in the final summary and nothing else.\n\nON A CONTINUING CYCLE, fix all in-scope items, including the minors. Fixing minors is safe here because another full cycle follows and will catch any regression they introduce, at no extra cost.\n\nON A TERMINAL CYCLE — and on a capped final cycle, since nothing follows it either — judge each minor on whether fixing it is worth the risk of a late, unreviewed change. Fix what is clearly worth fixing and skip what is not. Record everything you skip and why; it goes into the final report.\n\nWhen several fixes are independent — different files, no interactions — launch `model: \"sonnet\"` subagents in parallel, one per fix. When fixes interact, sequence them in dependency order. For a single small fix, just make it yourself. Each subagent makes its fix, stages the changed files, and does NOT commit — commit management belongs to the next step.\n\nDo not expand scope: only fix issues within the scope of the changes under review. Do not fight the project: if the codebase has a pattern you disagree with, follow it anyway — this review is about the new changes, not about refactoring the project.\n\nEnd this stage as SUCCEEDED if you made at least one fix, listing each fix and the finding it addresses. End this stage as FAILED if you deliberately fixed nothing — on a terminal cycle where no minor was worth the risk — so the workflow goes straight to the closing report without a pointless commit and re-validation."
+    ]
+
+    // Phase 4: fold each fix into the commit it belongs to, preserving the
+    // commit structure that matches the logical steps of the plan.
+    commit [import="../facto-commit-or-amend/workflow.fabro"]
+
+    validate [
+        label="Phase 5: Re-validate",
+        prompt="Run every validation step gathered at the start of this run: the test suite, the linter, the type checker, the build, and anything else the caller specified. Run the project's real commands — the ones CI runs — not approximations of them.\n\nIf any validation fails, fix the failure and fold the fix into the appropriate commit by running the commit-or-amend procedure again, then re-run validation. Do not finish this stage until every validation step passes. Preserve the commit structure while doing this: the point of amending is to keep the history matching the logical steps of the plan, so do not squash everything into one commit.\n\nReport each validation command, its result, and anything you had to fix to make it pass."
+    ]
+
+    cycle_gate [
+        label="Phase 6: Repeat Or Finish",
+        shape=tab,
+        prompt="Decide whether another full review cycle runs.\n\nEnd this stage as SUCCEEDED — go back and review again — only when the triage step classified this as a CONTINUING CYCLE and the maximum-cycles guardrail has not been reached. The cap is the number recorded at the start of the run, 5 unless the caller set another value; count the review cycles already run against it.\n\nEnd this stage as FAILED — the loop is done — in every other case: the triage step classified this as a TERMINAL CYCLE, or as a CAPPED FINAL CYCLE, or the cycle cap has now been reached. Hitting the cap while critical or important in-scope findings are still appearing is itself a signal — of fix-churn, or of a genuinely hard problem that wants human judgment — so say so plainly and let the closing report carry the remaining items to the developer.\n\nState which it is, how many cycles have run, and the cap."
+    ]
+
+    // 'Done' step 1: only touch a PR that already exists — never create one here.
+    done_check [
+        label="Existing PR To Update?",
+        shape=parallelogram,
+        max_retries=0,
+        script="set +e; PR=$(gh pr view --json number,url,state 2>/dev/null); if [ -z \"$PR\" ]; then echo 'no-pr: no pull request exists for this branch; skipping PR update'; exit 1; fi; echo \"$PR\"; echo 'pr-exists: an open pull request will be updated with the review-loop fixes'; exit 0"
+    ]
+
+    // 'Done' step 1 (continued): update the existing PR so it reflects the fixes.
+    pr [import="../facto-pr/workflow.fabro"]
+
+    report [
+        label="Done: Report",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Report the outcome of the review loop, using only what actually happened in the steps above. Do not invent findings, fixes, or cycles.\n\nReport, in this order: HOW MANY CYCLES were run. WHAT WAS ADDRESSED in each cycle, as a brief list per cycle. ANYTHING LEFT UNADDRESSED or committed without review, and why — in particular the minors that were deliberately skipped on a terminal cycle, and any critical or important findings still outstanding because the cycle cap was reached. HOW THE LOOP ENDED: on a clean cycle with no in-scope findings, on an all-minor terminal cycle, or on the cycle cap. OUT-OF-SCOPE OBSERVATIONS — every issue the review noticed that falls outside the scope of the current changes, stated clearly enough that the developer can act on them separately if they choose; these were noted and never fixed, by design. WHETHER AN EXISTING PR WAS UPDATED, with its URL, or that no PR existed to update — a new PR is never created by this loop."
+    ]
+
+    start -> gather_inputs
+    gather_inputs -> review
+    review -> triage
+    triage -> fix [label="In-scope findings", condition="outcome=succeeded"]
+    triage -> done_check [label="No in-scope findings"]
+    fix -> commit [label="Fixes made", condition="outcome=succeeded"]
+    fix -> done_check [label="Nothing worth fixing"]
+    commit -> validate
+    validate -> cycle_gate
+    cycle_gate -> review [label="Another cycle", condition="outcome=succeeded"]
+    cycle_gate -> done_check [label="Loop done"]
+    done_check -> pr [label="PR exists", condition="outcome=succeeded"]
+    done_check -> report [label="No PR to update"]
+    pr -> report
+    report -> exit
+}

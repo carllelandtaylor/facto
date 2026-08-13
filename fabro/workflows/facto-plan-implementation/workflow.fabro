@@ -1,0 +1,246 @@
+digraph FactoPlanImplementation {
+    graph [
+        goal="Create a detailed technical implementation plan from product requirements, designs and developer input, as a sequence of steps that each keep the system working",
+        rankdir=LR,
+        max_node_visits=40
+    ]
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    issue_context [
+        shape=parallelogram,
+        label="Fetch Active Issue Context",
+        script="set +e; if facto-helper.sh tracker.exists 2>/dev/null; then ISSUE_NUMBER=\"$(facto-helper.sh current-issue 2>/dev/null)\"; if [ -n \"$ISSUE_NUMBER\" ]; then REPO_SLUG=\"$(facto-helper.sh tracker.field repo)\"; gh issue view \"$ISSUE_NUMBER\" --repo \"$REPO_SLUG\" --json title,body,comments; else echo 'no active issue resolved'; fi; else echo 'no facto tracker configured'; fi; exit 0"
+    ]
+
+    absorb [
+        label="Absorb the Requirements",
+        thread_id="plan-impl",
+        fidelity="full",
+        max_visits=3,
+        prompt="You are running the Facto technical-planning skill. Phase 1 — Absorb the Requirements.
+
+Your inputs are the product requirements (a document, a description, a ticket) and the UI/UX designs if applicable — the design spec from /facto:plan-design when one exists, or screenshots, described Figma links, or mockups. By default, look for existing planning docs in the task directory (`facto-tasks/<task-slug>/`) and use them as inputs. If none were provided and none are there, ask for them before going any further.
+
+The previous step ran the optional Active Issue lookup; its output is in context. If it returned an Issue body and comments, treat them as additional requirements input alongside any PRD or design docs. Do not write back to the Issue. If the lookup found nothing or failed, proceed without it — never block planning on Issue retrieval.
+
+Read and internalize everything, then produce a brief summary of 5-10 bullet points of what needs to be built, and share it with the developer so they can spot an obvious misread. If Issue context was found, say what it adds to the requirements.
+
+If the requirements are clear and internally consistent, say so and move on. Only flag a stop if something is genuinely unclear, contradictory, or incomplete in a way you cannot reasonably resolve on your own — and in that case say exactly what you need answered."
+    ]
+
+    clarify_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Is that a correct read of what needs to be built? Pick 'proceed' if it's right or close enough — I'll only stop if something is genuinely unclear."
+    ]
+
+    ask_clarify [
+        shape=hexagon,
+        question_type="freeform",
+        label="Tell me what I misread, what's missing, and the answers to anything I flagged as unclear or contradictory in the requirements."
+    ]
+
+    analyze_codebase [
+        label="Analyze the Existing Codebase",
+        thread_id="plan-impl",
+        fidelity="full",
+        prompt="Phase 2 — Analyze the Existing Codebase. Before forming any opinion about how to build this, understand what already exists.
+
+1. Find project guidelines and documentation. Search for and read: CLAUDE.md files (root and subdirectories), PRODUCT-REQUIREMENTS.md, TECHNICAL-DESIGN.md or similar, CONTRIBUTING.md, the docs/ directory, and any architecture decision records (ADR/, decisions/).
+
+2. Discover the available validation mechanisms: test runners and test scripts (package.json scripts, Makefile targets, pytest.ini), linters, formatters, type checkers, build commands, CI configuration (.github/workflows/, .circleci/), and E2E suites. You will reference these by their real commands later — placeholders are not acceptable.
+
+3. Understand the relevant existing code. Based on the requirements, explore the parts of the codebase that will be affected: what modules, components or services already exist in this area, what patterns the codebase uses (state management, API design, data access), and what can be reused versus what needs to be created.
+
+4. Domain expertise and verification coverage. Reflect on what the plan touches and how Facto will know it works:
+   a. Identify the technical domains the plan touches. Be specific — name the actual technologies and patterns, for example 'WebGL custom-shader programming with ping-pong framebuffers' or 'WebAudio synthesis with custom AudioWorklets'. Avoid generic categories like 'frontend' or 'backend'.
+   b. For each domain, reflect honestly on model expertise: mainstream and well-trodden, or specialty with sparse training data? Does the work need deep domain expertise, or is it applying well-known patterns? Classify each domain as high, medium or low.
+   c. For each PRD acceptance criterion, classify Facto's verification capability as `automated` (Facto can write a test or script that verifies it with no human input), `manual-described` (Facto cannot verify autonomously, but a clear human-runnable check exists), or `blocked-no-tooling` (Facto cannot verify even with human help via current tooling — for example subjective visual quality).
+   d. Every E2E test step in the plan must trace back to a specific PRD acceptance criterion and reference it. Criteria with no automated check get either an E2E `manual-described` step or an explicit Risk entry — they do not silently disappear.
+   e. Emit a Verification Coverage table with the columns: Domain | Expertise | PRD criterion | Verification.
+
+Surfacing rule: any row with `low` expertise OR `blocked-no-tooling` verification must be echoed explicitly as a Risk in the plan's Risks section AND called out in this summary message — these are the rows the developer most needs to see.
+
+Summarize for the developer: existing patterns to follow, code to build on, the validation tools available with their real commands, and the Verification Coverage table including the Risk call-outs."
+    ]
+
+    key_decisions [
+        label="Identify Key Decisions",
+        thread_id="plan-impl",
+        fidelity="full",
+        max_visits=3,
+        prompt="Phase 3 — Key Decisions. Identify the technical decisions that need making before you can draft the plan. A decision belongs here only if there are multiple reasonable approaches, the choice meaningfully affects the implementation, and the developer should have input. Skip anything that is obvious from the codebase patterns or the requirements.
+
+For each decision: state the decision, present 2-3 options with brief pros and cons tied to the requirements, and make a recommendation — what you would pick and why.
+
+Present all the decisions in a single message as a numbered list, and invite the developer to reply once covering everything. Do not use the AskUserQuestion tool; use natural conversation. Exception: if a decision genuinely depends on the answer to an earlier one, hold it back and ask it as a follow-up after that answer lands.
+
+Common decisions to surface when relevant: data model changes (new tables or fields, schema design), API design (endpoints, request and response shapes), component architecture (new components versus extending existing ones), state management approach, meaningful third-party library choices, and migration strategy if existing behaviour is changing.
+
+Reference actual files, functions and patterns from the codebase — not hypothetical ones. Respect stated constraints such as 'keep it simple' or 'no new dependencies'. Do not over-engineer: a three-step feature does not need a twelve-decision interview.
+
+If you are back here after a first round, ask only the follow-up decisions that depended on the answers already given."
+    ]
+
+    ask_decisions [
+        shape=hexagon,
+        question_type="freeform",
+        label="Phase 3 — Answer the decisions in one go: which option you want for each, and where my recommendation is wrong. Add any constraint I should be honouring that I haven't."
+    ]
+
+    record_decisions [
+        label="Record the Decisions",
+        thread_id="plan-impl",
+        fidelity="full",
+        prompt="The developer's answers are in context under human.gate.text.
+
+Record the final choice for each decision, with a one-line reason tied back to the requirement or constraint that drove it. Where the developer overrode your recommendation, record their choice as the decision — do not re-argue it.
+
+Then check whether any decision is still open: one they did not answer, or a follow-up that only became askable now that an earlier answer has landed. List those explicitly. If nothing is left open, say the decisions are settled and the plan can be drafted."
+    ]
+
+    decisions_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        label="Are the decisions settled enough to draft the plan, or are there follow-ups to work through first?"
+    ]
+
+    resolve_task_dir [
+        shape=parallelogram,
+        label="Resolve Task Directory",
+        script="set -e; TASK_DIR=\"$(facto-helper.sh task-dir)\"; mkdir -p \"$TASK_DIR\"; echo \"$TASK_DIR/implementation-plan.md\""
+    ]
+
+    ask_slug [
+        shape=hexagon,
+        question_type="freeform",
+        label="I could not resolve the task directory automatically — you are probably not on a task worktree or feature branch. Give me a short kebab-case slug to use, for example 'bulk-invite-members'."
+    ]
+
+    make_task_dir [
+        label="Create Task Directory From Slug",
+        thread_id="plan-impl",
+        fidelity="full",
+        prompt="The automatic task-directory lookup failed. The developer's kebab-case slug is in context under human.gate.text.
+
+Resolve the plan path with `PLAN_PATH=\"$(facto-helper.sh task-dir \"<slug>\")/implementation-plan.md\"`, then create the directory with `mkdir -p \"$(dirname \"$PLAN_PATH\")\"`.
+
+`facto-helper.sh task-dir` returns an absolute path, so PLAN_PATH is fully qualified — keep it that way. Every reference to the plan from here on must use the fully qualified absolute path the developer can click or paste directly; never display it as a repo-relative path. Report the path."
+    ]
+
+    draft_plan [
+        label="Draft the Implementation Plan",
+        thread_id="plan-impl",
+        fidelity="full",
+        prompt="Phase 5 — Draft the Plan. First announce the path: 'I'll write the plan to <PLAN_PATH>', using the fully qualified absolute path resolved in the previous step. Then write the plan there. Do not ask any more questions — derive it from everything gathered so far.
+
+Follow the structure in plugins/facto/skills/plan-implementation/plan-template.md, and use plugins/facto/skills/plan-implementation/commit-message-template.md for the commit message format. Read both before writing. Include a header noting which requirements and designs the plan was based on, and when it was created.
+
+The plan is an ordered sequence of steps, each corresponding to a single commit. For each step:
+
+### Step N: [Short descriptive title]
+**Goal:** what is true after this step that was not before.
+**Changes:** the specific files to create or modify, what to add, change or remove in each, and key implementation details — not full code, but enough to be unambiguous.
+**Validation:** a checklist of the specific commands to run (tests, linter, type checker, build), any manual checks (what to look at, what behaviour to verify), and what 'passing' looks like.
+**Commit message:** a `type: descriptive message` subject, then a Context section of 2-5 lines explaining why the change exists and any notable technical choices — if new libraries, APIs or services are introduced, explain what they are and why they were chosen; if an existing pattern is being extended, note that. Then a Verification section with an Automated subsection giving the exact command, and a Manual subsection with numbered steps and expected results. Include Verification when the change has meaningful behaviour to verify; omit it for trivially correct changes such as docs, comments, or config that does not affect behaviour.
+
+Plan principles:
+- Each step must keep the system working. No step leaves the codebase broken. Every step depends only on previous steps, never on future ones.
+- Risk-first ordering — tackle the most uncertain or foundational pieces early so problems surface before too much is built on top.
+- Foundation before surface — backend and data changes before the frontend that depends on them.
+- Small, focused steps — each does one logical thing. If a step is getting large, break it up.
+- Use the project's real validation commands discovered in Phase 2, never generic placeholders.
+- Include tests with the code they test. Every step that adds or changes behaviour includes tests for that behaviour in the same step and commit — never a separate 'add tests' step. Use the project's existing test framework. If the project has no test framework, skip tests in the plan and flag at the end that one should be set up. Cover the happy path and meaningful edge cases.
+
+Also include the Verification Coverage table from Phase 2 under a 'Verification Coverage' heading near the Risks section, and echo every low-expertise or blocked-no-tooling row as an explicit Risk.
+
+After all the steps, include a Test Plan section: a checklist covering all project tests, the linter, the type checker, the build — each with the actual command — followed by specific end-to-end manual verification items. It must be comprehensive enough to confirm the full feature works."
+    ]
+
+    review_gate [
+        shape=hexagon,
+        question_type="multiple_choice",
+        max_visits=6,
+        review_target="draft_plan",
+        label="I've written the implementation plan to the task directory. Does the overall approach make sense? Are there any steps that seem wrong, too big, or in the wrong order? Anything missing?"
+    ]
+
+    collect_feedback [
+        shape=hexagon,
+        question_type="freeform",
+        label="Tell me what to change — steps that are wrong, too big, or out of order, missing work, validation commands that aren't real, or decisions you want to revisit."
+    ]
+
+    revise_plan [
+        label="Revise the Plan",
+        thread_id="plan-impl",
+        fidelity="full",
+        prompt="Phase 6. The developer's feedback is in context under human.gate.text.
+
+Address every piece of it. Update the plan file in place by editing it — do not rewrite from scratch, and do not drop steps the developer did not comment on.
+
+Renumber steps if the order changed, and re-check the invariant afterwards: every step must still depend only on the steps before it and must still leave the system working. If splitting a step, split its validation and its commit message too — a step without real validation commands is not finished.
+
+If the feedback reopens a Phase 3 decision, update the affected steps to match rather than leaving the plan describing the old choice.
+
+Then tell the developer exactly what changed, item by item, using the fully qualified absolute path of the plan, and ask for feedback again."
+    ]
+
+    commit_plan [
+        label="Commit the Plan",
+        thread_id="plan-impl",
+        fidelity="full",
+        prompt="The developer has explicitly accepted the plan. Planning docs are always committed.
+
+Stage only the plan file — never `git add -A`:
+
+    git add \"$PLAN_PATH\"
+    git commit -m \"docs: add implementation plan for <task-slug>\"
+
+Substitute the real plan path and task slug. If the commit fails, report the exact error rather than working around it with a broader stage."
+    ]
+
+    wrap_up [
+        shape=tab,
+        label="Wrap Up",
+        thread_id="plan-impl",
+        fidelity="full",
+        prompt="Close out in a few lines. Give the fully qualified absolute path of the committed implementation plan — never a repo-relative path — and the number of steps it contains.
+
+Then surface anything the developer needs to know before execution: the low-expertise or blocked-no-tooling rows from the Verification Coverage table, and, if the project has no test framework at all, the fact that one should be set up. Do not begin implementing."
+    ]
+
+    start -> issue_context
+    issue_context -> absorb
+
+    absorb -> clarify_gate
+    clarify_gate -> analyze_codebase [label="[P] Proceed, that's right"]
+    clarify_gate -> ask_clarify [label="[C] I have corrections"]
+    ask_clarify -> absorb [freeform=true]
+
+    analyze_codebase -> key_decisions
+    key_decisions -> ask_decisions
+    ask_decisions -> record_decisions [freeform=true]
+    record_decisions -> decisions_gate
+
+    decisions_gate -> resolve_task_dir [label="[D] Settled, draft the plan"]
+    decisions_gate -> key_decisions [label="[F] Follow-ups first"]
+
+    resolve_task_dir -> draft_plan [condition="outcome=succeeded"]
+    resolve_task_dir -> ask_slug
+
+    ask_slug -> make_task_dir [freeform=true]
+    make_task_dir -> draft_plan
+
+    draft_plan -> review_gate
+    review_gate -> commit_plan [label="[A] Accept the plan"]
+    review_gate -> collect_feedback [label="[F] I have feedback"]
+
+    collect_feedback -> revise_plan [freeform=true]
+    revise_plan -> review_gate
+
+    commit_plan -> wrap_up
+    wrap_up -> exit
+}

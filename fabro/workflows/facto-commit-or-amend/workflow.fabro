@@ -1,0 +1,66 @@
+digraph FactoCommitOrAmend {
+    graph [goal="Fold working tree changes into the commits they belong to, creating a new commit only for changes that belong nowhere else"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // Phase 1: Assess the working tree. Exits non-zero when the tree is clean,
+    // which routes straight to the report node ('Nothing to commit').
+    assess [
+        label="Assess Working Tree",
+        shape=parallelogram,
+        max_retries=0,
+        script="set +e; BASE=$(git merge-base HEAD origin/main 2>/dev/null); [ -n \"$BASE\" ] || BASE=$(git merge-base HEAD main 2>/dev/null); [ -n \"$BASE\" ] || BASE=$(git rev-parse HEAD~1 2>/dev/null); [ -n \"$BASE\" ] || BASE=$(git rev-list --max-parents=0 HEAD | tail -1); echo \"base_ref=$BASE\"; if [ -z \"$(git status --porcelain)\" ]; then echo 'CLEAN: no staged or unstaged changes; nothing to commit'; exit 1; fi; echo '--- git status ---'; git status; echo '--- commit stack ($BASE..HEAD) ---'; git log $BASE..HEAD --oneline; echo '--- unstaged diffstat ---'; git diff --stat; echo '--- staged diffstat ---'; git diff --cached --stat; echo '--- untracked ---'; git ls-files --others --exclude-standard"
+    ]
+
+    // Phase 2: Stage changes.
+    stage_changes [
+        label="Stage Changes",
+        prompt="Stage the working tree changes that belong in the commit stack.\n\nRun `git diff` and `git diff --cached` and read every hunk before staging anything. Never run a blanket `git add -A` or `git add .`.\n\nStage only files that are intentional source changes. Deliberately leave out generated files, build artifacts, dependency directories, editor scratch files, lockfiles you did not mean to touch, and anything that contains a credential, token, or other secret. If one file mixes intentional and unintentional changes, stage only the intended hunks (`git add -p` or an equivalent patch-mode selection).\n\nReport the list of files you staged, and separately the list you left unstaged with a one-line reason for each exclusion. Do not create, amend, or rebase any commit in this step."
+    ]
+
+    // Phase 3: Attribute each change to a destination commit.
+    attribute [
+        label="Attribute Changes",
+        prompt="Decide where each change belongs. Do not commit anything in this step.\n\nThe base ref and the current commit stack were printed by the assess step. For every changed file — and for every hunk separately when a single file carries changes belonging to different commits — pick exactly one destination:\n\n1. MOST RECENT COMMIT: the change extends or fixes work done in HEAD.\n2. AN EARLIER COMMIT: the change extends or fixes work done in a specific prior commit in the stack. Record that commit's hash.\n3. NET-NEW: the change is unrelated to every existing commit in the stack and needs its own new commit.\n\nGather evidence before deciding. Run `git log <base>..HEAD -- <file>` for each changed file, and read the existing commit messages and their diffs (`git show <hash>`). Attribute on what the commits actually did, not on filename similarity.\n\nOutput an explicit attribution table: file (or hunk) -> destination -> the evidence that justifies it. Group the net-new changes and note, for each group, whether it should be one commit or several."
+    ]
+
+    // Phase 4: Apply. Earlier commits first, then HEAD, then net-new.
+    apply [
+        label="Apply Commits",
+        prompt="Apply the attribution decided in the previous step. Process the groups strictly in this order: earlier commits first, then the most recent commit, then net-new.\n\nEARLIER-COMMIT CHANGES\n    git add <files>\n    git commit --fixup=<target-commit-hash>\nCreate every fixup commit first. When they all exist, squash them in a single pass:\n    GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash <base>\nIf the rebase stops on a conflict, resolve it, `git add` the resolved files, and `git rebase --continue`. Never leave a rebase in progress.\n\nMOST-RECENT-COMMIT CHANGES\n    git add <files>\n    git commit --amend --no-edit\n\nNET-NEW CHANGES\n    git add <files>\n    git commit -m <message>\n\nCommit message rules for every new commit. Subject line: imperative mood, no trailing period, describing what the change does. The body must include a Context line saying why this change exists — and when the change introduces a new library, API, or service, what it is and why it was chosen. Add a Verification section when it is meaningful, split into an `Automated:` part listing the exact commands and a `Manual:` part with numbered steps and their expected results. Omit the Verification section entirely for changes that are trivially correct: documentation, comments, or config with no behavioral effect. Keep each body to 2-5 lines — enough for a developer reading `git log` to understand the change without opening the diff. Use the commit message the caller supplied if there is one; otherwise write it yourself."
+    ]
+
+    // Phase 5: Verify the resulting stack.
+    verify [
+        label="Verify Stack",
+        shape=parallelogram,
+        max_retries=0,
+        max_visits=3,
+        script="set +e; BASE=$(git merge-base HEAD origin/main 2>/dev/null); [ -n \"$BASE\" ] || BASE=$(git merge-base HEAD main 2>/dev/null); [ -n \"$BASE\" ] || BASE=$(git rev-parse HEAD~1 2>/dev/null); echo '--- final stack ---'; git log $BASE..HEAD --oneline; echo '--- working tree ---'; git status --porcelain; GIT_DIR_PATH=$(git rev-parse --git-dir); if [ -d \"$GIT_DIR_PATH/rebase-merge\" ] || [ -d \"$GIT_DIR_PATH/rebase-apply\" ]; then echo 'ERROR: a rebase is still in progress'; exit 1; fi; if git log $BASE..HEAD --oneline | grep -qiE '^[0-9a-f]+ (fixup|squash)!'; then echo 'ERROR: unsquashed fixup or squash commits remain in the stack'; exit 1; fi; if [ -n \"$(git diff --cached --name-only)\" ]; then echo 'ERROR: staged changes remain uncommitted'; exit 1; fi; echo 'OK: stack is clean'"
+    ]
+
+    repair [
+        label="Repair Stack",
+        prompt="The verify step failed. Read its output in the context above and fix the stack.\n\nCommon causes and their fixes:\n- A rebase is still in progress: resolve the conflicts, `git add` the resolved files, and `git rebase --continue` until it finishes. Only `git rebase --abort` if the stack cannot be salvaged, and say so explicitly in your output.\n- Unsquashed `fixup!` or `squash!` commits remain: run `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash <base>`.\n- Staged changes remain uncommitted: attribute them the same way as before — amend into HEAD, create a fixup for an earlier commit, or make a new commit with a message that follows the Context / Verification rules.\n\nDo not drop or discard any change to make the check pass."
+    ]
+
+    report [
+        label="Report",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Report what this run did, using only what actually happened in the steps above. Do not invent commits.\n\nIf the assess step reported a clean working tree, say `Nothing to commit` and stop there.\n\nOtherwise report, in this order:\n1. Which files were amended into which existing commits, naming each target commit by hash and subject.\n2. Which new commits were created, with their subject lines.\n3. Which files were deliberately left unstaged, and why.\n4. The final commit stack as `git log <base>..HEAD --oneline` printed it.\n5. Anything the repair step had to fix, and anything still unresolved."
+    ]
+
+    start -> assess
+    assess -> stage_changes [condition="outcome=succeeded"]
+    assess -> report
+    stage_changes -> attribute
+    attribute -> apply
+    apply -> verify
+    verify -> report [condition="outcome=succeeded"]
+    verify -> repair
+    repair -> verify
+    report -> exit
+}

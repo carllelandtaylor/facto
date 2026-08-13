@@ -1,0 +1,67 @@
+digraph FactoWatchAndFixCi {
+    graph [goal="Make CI pass on the current branch's open pull request: watch the checks, and for each failure pull its logs, reproduce it locally by re-running that check's own command, fix the root cause, push, and loop until every check is green"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // Phase 1: find the open PR for this branch. Exits non-zero when there is no
+    // OPEN pull request, which routes straight to the report — nothing to green.
+    identify_pr [
+        label="Phase 1: Identify PR & Checks",
+        shape=parallelogram,
+        max_retries=0,
+        script="set +e; echo '--- branch ---'; git branch --show-current; echo '--- pull request ---'; gh pr view --json number,url,title,state 2>/dev/null; STATE=$(gh pr view --json state -q .state 2>/dev/null); if [ \"$STATE\" != \"OPEN\" ]; then echo \"NO OPEN PR: this branch has no open pull request to make green (state=${STATE:-none})\"; exit 1; fi; echo 'OK: open pull request found on this branch'"
+    ]
+
+    // Phase 2: block until the checks finish rather than busy-polling. max_visits
+    // bounds the fix loop at the SKILL's default of five fix cycles, plus the
+    // initial wait. Always exits 0 — the evaluate stage decides what the results
+    // mean, so a red check is not a stage failure here.
+    wait_checks [
+        label="Phase 2: Wait For Checks",
+        shape=parallelogram,
+        max_visits=6,
+        max_retries=0,
+        script="set +e; PR=$(gh pr view --json number -q .number 2>/dev/null); echo \"pr=$PR\"; FIRST=$(gh pr checks \"$PR\" 2>&1); if printf '%s' \"$FIRST\" | grep -qiE 'no checks reported|no check runs'; then echo 'NO CHECKS: this pull request has no checks configured'; exit 0; fi; gh pr checks \"$PR\" --watch --interval 30 2>&1 | tail -n 60; echo '--- final check results ---'; gh pr checks \"$PR\" 2>&1; exit 0"
+    ]
+
+    evaluate [
+        label="Phase 3: Evaluate & Reproduce Locally",
+        max_visits=6,
+        prompt="Read the check results for this pull request and decide whether there is anything to fix.\n\nRun `gh pr checks <pr>` and look at every check.\n\nIF EVERY CHECK IS GREEN, or the pull request has no checks configured at all, end this stage as SUCCEEDED and say which case applies — the run goes straight to the report. A pull request with no checks is nothing to fix, not something to wait on.\n\nOTHERWISE, FOR EACH FAILED CHECK:\n- Pull the failing logs with `gh run view <run-id> --log-failed`, mapping the check to its run via `gh pr checks` and `gh run list`.\n- Identify the exact command the check ran — the test invocation, the linter, the type checker, the build — reading it out of the workflow definition and the log rather than guessing.\n- REPRODUCE THE FAILURE LOCALLY by re-running that same command in the worktree. A CI failure already names the command that failed, so re-running it IS the reproduction; do not reach for /facto:repro-bug, which exists for app-level bugs that have no exact steps.\n- Diagnose the ROOT CAUSE from the local failure, not just the surface error message.\n\nDistinguish flaky from real. If a failure looks like a flake — a timeout, a network blip, a test-ordering artifact, a known-intermittent check — say so and note it as a SUSPECTED flake; a single re-run to confirm is allowed. Do not paper over a real failure by calling it flaky.\n\nEnd this stage as FAILED when at least one check is genuinely red, and report for each one: the check name, the exact command it ran, whether it reproduced locally, and the root cause you found. Say explicitly if a check could NOT be reproduced locally, or if it is outside this branch's control such as an infrastructure or secrets problem — those need to be surfaced rather than thrashed on."
+    ]
+
+    diagnose [
+        label="Phase 4: Fix The Root Cause",
+        max_visits=5,
+        prompt="Make the fix that addresses the root cause diagnosed for each failing check, then confirm the previously-failing command now passes locally by running it again.\n\nGUARDRAILS. Never disable, delete, skip or weaken a legitimate test to make CI pass. Turning a check green by removing a real assertion is not a fix and is forbidden — fix the underlying cause instead. Do not expand the change beyond what the failure requires. If a check cannot be reproduced locally, keeps failing after a fix, or is outside this branch's control, stop working on it and surface it clearly rather than thrashing.\n\nThen route the push. This run pushes through one of two sub-workflows and you choose which:\n\nEnd this stage as SUCCEEDED when you have already applied the fix in the working tree and verified the command passes. The run then hands the working tree straight to the pull request procedure, which commits it into the right place, pushes, and updates the PR.\n\nEnd this stage as FAILED when you have NOT applied the change yourself — because the fix is a set of discrete changes better described than hand-applied here, or because you deliberately left the tree untouched. Then state each required change as one self-contained sentence naming the file and the intended result. The run hands that list to the iterate procedure, which executes the changes and pushes them.\n\nEither way, report which checks you addressed, what the root cause of each was, the command you re-ran to confirm the fix locally, and which push path you chose."
+    ]
+
+    // Phase 4 push path A: the fix is already in the working tree, so the PR
+    // procedure commits it, pushes, and updates the pull request in place.
+    push_direct [import="../facto-pr/workflow.fabro"]
+
+    // Phase 4 push path B: the fix is described rather than applied, so the
+    // iterate procedure makes the changes and then pushes them the same way.
+    push_iterate [import="../facto-iterate/workflow.fabro"]
+
+    report [
+        label="Phase 5: Done",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Report the outcome of this run, using only what actually happened in the stages above. Do not invent a check, a fix or a URL.\n\nIf the first stage found no open pull request on this branch, say exactly that — there is nothing to make green — and stop there.\n\nOtherwise report, in this order: the FINAL CI STATUS, either all checks green or stopped with failures remaining; WHAT WAS FIXED IN EACH CYCLE, one line per cycle naming the check and the root cause that was addressed; HOW MANY CYCLES were used out of the maximum of five; and the PR URL.\n\nCall out anything that needs a person: a check that could not be reproduced locally, a check that kept failing after a fix, a failure outside this branch's control such as infrastructure or secrets, and any failure you flagged as a suspected flake. If the run stopped because it hit the cycle limit, say so plainly and list the checks that are still red."
+    ]
+
+    start -> identify_pr
+    identify_pr -> wait_checks [label="Open PR", condition="outcome=succeeded"]
+    identify_pr -> report [label="No open PR"]
+    wait_checks -> evaluate
+    evaluate -> report [label="All checks green", condition="outcome=succeeded"]
+    evaluate -> diagnose
+    diagnose -> push_direct [label="Fix applied in the worktree", condition="outcome=succeeded"]
+    diagnose -> push_iterate [label="Changes described, not applied"]
+    push_direct -> wait_checks
+    push_iterate -> wait_checks
+    report -> exit
+}

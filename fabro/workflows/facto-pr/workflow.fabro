@@ -1,0 +1,77 @@
+digraph FactoPr {
+    graph [goal="Create or update a GitHub pull request for the current branch with a thorough summary, requirements context, screenshots of visual changes, and verification steps"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // Phase 1: Gather all branch state in one command. Exits non-zero when there
+    // is nothing new to put in a PR, which routes straight to the report node.
+    gather [
+        label="Phase 1: Gather Context",
+        shape=parallelogram,
+        max_retries=0,
+        script="set +e; echo '--- branch ---'; git branch --show-current; echo '--- log (main..HEAD) ---'; git log main..HEAD --oneline; echo '--- diffstat (main...HEAD) ---'; git diff main...HEAD --stat; echo '--- status ---'; git status --porcelain; git diff @{u}..HEAD --quiet 2>/dev/null; UP=$?; echo \"remote_uptodate=$UP\"; AHEAD=$(git rev-list main..HEAD --count 2>/dev/null); [ -n \"$AHEAD\" ] || AHEAD=0; echo \"ahead=$AHEAD\"; echo '--- upstream ---'; git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo 'no-upstream'; echo '--- existing pr ---'; gh pr view --json number,url,state,title 2>/dev/null || echo 'no-pr'; if [ -z \"$(git status --porcelain)\" ] && { [ \"$AHEAD\" = \"0\" ] || [ \"$UP\" = \"0\" ]; }; then echo 'NOTHING TO PR: working tree is clean and there is nothing new to push'; exit 1; fi; echo 'OK: there is something to put in a PR'"
+    ]
+
+    // Phase 1 (continued): the working tree may be dirty, so fold any outstanding
+    // changes into the commits they belong to before branching and pushing. When
+    // the tree is already clean this sub-workflow reports 'Nothing to commit'.
+    commit [import="../facto-commit-or-amend/workflow.fabro"]
+
+    branch [
+        label="Phase 2: Determine The Branch",
+        prompt="Decide which branch this pull request is opened from. Never ask the developer for a branch name.\n\nIf `git branch --show-current` already reports a non-main branch such as `feat/foo` or `fix/bar`, use it as the PR branch and do nothing else in this step.\n\nIf you are on `main` or `master`, derive a branch name yourself and create it. Choose the PREFIX from the conventional-commit type of the first commit ahead of main — `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/` — and default to `chore/` when the first subject is not in conventional-commit form. Choose the SLUG as a short kebab-case description of three to five words drawn from keywords common to the commit subjects ahead of main; if there are no commits yet, slugify from the staged and unstaged file paths or a short summary of the working-tree diff. For example, commits `feat(auth): add X` and `feat(auth): tweak Y` give `feat/auth-add-x-and-tweak-y`. Then run `git checkout -b <derived-name>`.\n\nNever wrap `git` in `bash -c '...'` or any other shell wrapper — always invoke the literal command. Report the branch name you ended up on and whether you created it."
+    ]
+
+    reason [
+        label="Phase 3: Establish The Reason For Change",
+        prompt="The PR body must state why this change is being made, so establish that reason now. Do not ask the developer yet.\n\nFirst try to derive the reason from what you already have: the goal and context given to this run, any requirements, product requirements documents, design documents or ticket links supplied by the caller, and the Context lines in the bodies of the commits ahead of main (`git log main..HEAD --format=%B`). Also read the diff itself for evidence of the problem being solved. A good reason names the user-facing problem being solved, the technical problem or limitation being addressed, the opportunity being taken, or the strategic decision behind the change — and is specific about the before and after where that is relevant.\n\nEnd this stage as SUCCEEDED and state the reason in one short paragraph if you can establish it from that evidence. End this stage as FAILED if the evidence genuinely does not tell you why the change is being made — the next step will ask the developer directly. Do not invent a reason to avoid failing."
+    ]
+
+    ask_reason [
+        label="Reason For This Change?",
+        shape=hexagon
+    ]
+
+    screenshots [
+        label="Phase 4: Capture Screenshots Of Visual Changes",
+        prompt="Capture screenshots of any visual change on this branch. This whole step is autonomous — never ask the developer, and never let a capture failure abort the PR.\n\nFIRST, judge on your own whether the changes in this PR could plausibly affect the UI or UX that a person sees or interacts with. Reason about what the change actually does; do not rely on a checklist, a file-extension list, or any other heuristic. If the change could not affect the UI or UX, capture nothing, record that the change is non-visual, and finish this step — no Screenshots section will go into the PR body.\n\nIF THE CHANGE IS VISUAL, delegate the capture work to a subagent so the heavy image tokens stay out of this workflow's context; the subagent must return only the list of screenshot paths and their labels, never the images themselves. The subagent does the following.\n\n1. Resolve the directory: `SHOTS_DIR=\"$(facto-helper.sh task-dir)/screenshots\"`. If `facto-helper.sh task-dir` fails because you are not in a task worktree, pass a short kebab-case slug instead: `SHOTS_DIR=\"$(facto-helper.sh task-dir \"<slug>\")/screenshots\"`. Then `mkdir -p \"$SHOTS_DIR\"`.\n2. Remove stale screenshots from earlier runs so the directory always reflects the current app: `git rm -q \"$SHOTS_DIR\"/* 2>/dev/null || true`.\n3. Bring up the app and capture the after-state of every distinct surface the change affects, with no cap on how many. Prefer, in this order: a project-specific run skill or documented run instructions; the built-in run and verify skills; for web UIs the Playwright tools, navigating to the running app and taking screenshots; for native mobile, booting or attaching an emulator or simulator, launching the app and navigating to the affected screens. Save each capture into `$SHOTS_DIR` under a descriptive labelled filename such as `dashboard-after.png`.\n4. Best-effort before-state: when the change modifies an existing screen rather than adding a brand-new one, and the base version is cheaply runnable, add a worktree at the merge base with `git worktree add <tmp> \"$(git merge-base main HEAD)\"`, run that version, capture the same surfaces into `$SHOTS_DIR` as `*-before.png`, then remove the worktree with `git worktree remove <tmp> --force`. For brand-new screens capture after-only. If running the base version is impractical because of an expensive rebuild or missing services, skip the before-state and note that.\n5. Stage ONLY `$SHOTS_DIR` — never `git add -A`. The next step commits what you staged.\n\nIF THE CHANGE IS VISUAL BUT NO VIABLE WAY TO RUN THE APP AND CAPTURE EXISTS, capture nothing and record the specific reason, for example 'no emulator available' or 'app build failed'. The PR body will then carry the placeholder form of the Screenshots section quoting that reason.\n\nNever wrap `git` in `bash -c '...'` or any other shell wrapper. Report exactly one of: the committed-screenshot paths with their labels; the specific capture-failure reason; or that the change is non-visual."
+    ]
+
+    // Commit the captured screenshots onto the branch before it is pushed, so the
+    // PR body can point at them. A non-visual change leaves the tree clean here
+    // and this sub-workflow simply reports 'Nothing to commit'.
+    commit_shots [import="../facto-commit-or-amend/workflow.fabro"]
+
+    push [
+        label="Phase 5: Push The Branch",
+        prompt="Push the branch. Determine which of three cases applies from a single check, then run the one matching push command:\n\n    git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null && echo \"ahead=$(git rev-list --count @{u}..HEAD) behind=$(git rev-list --count HEAD..@{u})\" || echo \"no-upstream\"\n\nCASE A — the check prints `no-upstream`: there is no upstream, so push and set one with `git push -u origin <branch-name>`.\n\nCASE B — there is an upstream and `behind` is 0: the local branch fast-forwards the remote, so a plain `git push` succeeds.\n\nCASE C — there is an upstream and both `ahead` and `behind` are greater than zero: history diverged because the commit step rewrote it, so run `git push --force-with-lease`. Invoking this workflow constitutes the developer's pre-authorization for `git push --force-with-lease` on this branch. Never use a bare `git push --force`; `--force-with-lease` refuses to push if the remote moved unexpectedly, and that safety net must be preserved.\n\nNever wrap `git push` in `bash -c '...'` or any other shell wrapper — that trips bypass detection and hardens the classifier for the whole session. Always invoke the literal command. Report which case applied and the push result."
+    ]
+
+    pr_upsert [
+        label="Phase 6: Create Or Update The PR",
+        prompt="Create the pull request, or update the existing one in place. Start with `gh pr view --json number,url,state 2>/dev/null`.\n\nIf a PR exists and its state is OPEN, take the UPDATE path. If a PR exists and its state is MERGED, ignore it and take the CREATE path — that PR is no longer active. If a PR exists and its state is CLOSED, ask the developer whether to reopen it with `gh pr reopen <number>`, create a new one, or stop. If no PR exists, take the CREATE path.\n\nUPDATE PATH. Never regenerate the body from scratch: the developer may have added sections, screenshots, Loom links, reviewer notes or rewordings that a wholesale replacement would destroy. Do it in a single pass — fetch once, edit once, and do not re-read afterwards to verify. Fetch the current body once with `gh pr view <number> --json title,body`, treat it as the source of truth, and apply the minimum set of edits that make it reflect the current branch state: correct stale information in place, add genuinely new information to the most appropriate existing section, and remove or revise only the specific sentences or bullets that are no longer true. Leave everything else verbatim, including developer-added sections and inline additions; when unsure whether something is stale, keep it. Treat `## Screenshots` under the same rule: if this run captured screenshots and the body has no Screenshots section, add one in the captured form; if a Screenshots section already exists, refresh only its directory pointer and file list to match the currently committed screenshots; if the change is non-visual, leave the body's Screenshots handling untouched. On the update path do NOT insert or modify any `Resolves #N` line and do NOT set a Project Status — that is handled by other automation. Apply everything with a single `gh pr edit <number> --body \"...\"`.\n\nCREATE PATH. Before running `gh pr create`, check for an active Issue:\n\n    if facto-helper.sh tracker.exists 2>/dev/null; then ISSUE_NUMBER=\"$(facto-helper.sh current-issue 2>/dev/null)\" || ISSUE_NUMBER=\"\"; fi\n\nIf `$ISSUE_NUMBER` is set, build the PR-link line by substituting `{issue}` into `facto-helper.sh tracker.field pr_link_format` — default `Resolves #{issue}`, giving `Resolves #123` — and insert it as the second line of the `## Summary` section, immediately after the one-line summary. If `tracker.exists` fails or `current-issue` returns nothing, skip the link entirely.\n\nBuild the body from the PR body template at [facto] claude/skills/pr/pr-body-template.md, which defines every section — Summary, Reason for change, What changed, Screenshots, Notable technical choices, Verification — and the footer. Keep the PR title short and in conventional commit format such as `feat:`, `fix:` or `refactor:`, under 70 characters. Fill Reason for change from the reason established earlier in this run. Fill `## Screenshots` from the outcome of the capture step: when capture succeeded use the pointer form, building the directory link from `REPO_SLUG=\"$(gh repo view --json nameWithOwner -q .nameWithOwner)\"`, `BRANCH=\"$(git branch --show-current)\"` and `REL=\"$(realpath --relative-to=\"$(git rev-parse --show-toplevel)\" \"$SHOTS_DIR\")\"` into `https://github.com/$REPO_SLUG/tree/$BRANCH/$REL`, with one bullet per committed file labelled by screen or state and by before or after; when capture failed use the placeholder form, keeping the unchecked `- [ ] Attach screenshots before merging` item and quoting the specific recorded reason; when the change is non-visual omit the `## Screenshots` section entirely.\n\nEvery Manual verification step must describe something that could fail even if every file in the diff is exactly as shown — running a command, starting a dev server and exercising a path, checking a CI run's outcome, parsing a config with a real tool. Do NOT write steps that merely verify a file exists, that content is present, or that a line was deleted; the diff already proves those. `npx playwright test foo.spec.ts` is acceptable, `confirm file X exists` is not; `start dev server, click X, expect Y` is acceptable, `verify section Y is present` is not. Verification steps must be specific enough for someone unfamiliar with the change to follow them. For documentation-only, comment-only, gitignore or pure-config changes with no executable behavior, replace the numbered list with `N/A — documentation-only change; diff review is sufficient.` rather than fabricating steps. End the body with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.\n\nAfter `gh pr create` succeeds and you have captured the PR URL, and only when `$ISSUE_NUMBER` was set, set that issue's Project Status to the tracker's `status_values.in_review` using the inline `gh project item-edit` pattern. A Status-write failure is a warning, not an error — say so and continue, because the PR itself is the deliverable.\n\nReport whether the PR was created or updated, its number, its URL and its title."
+    ]
+
+    report [
+        label="Phase 7: Report",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Report what this run actually did, using only what happened in the steps above. Do not invent a PR, a commit, or a URL.\n\nIf the context step reported that there was nothing to put in a PR, say `Nothing new to put in a PR` and stop there.\n\nOtherwise report, in this order: whether the pull request was CREATED or UPDATED; the PR URL; the PR title; a one-line summary of what the PR covers; and, if any commit work happened, one line per commit that was added or amended — for example `amended into \"Add webhook retry\"` for a folded-in error handling fix, or `new commit \"Fix lint errors\"` for addressed eslint warnings. Note the screenshot outcome in one line: the screenshots committed, the reason capture was not possible, or that the change was non-visual. Finally note anything that warned rather than failed, such as a Project Status write that did not go through."
+    ]
+
+    start -> gather
+    gather -> commit [condition="outcome=succeeded"]
+    gather -> report [label="Nothing to PR"]
+    commit -> branch
+    branch -> reason
+    reason -> ask_reason [label="Reason unknown", condition="outcome=failed"]
+    reason -> screenshots
+    ask_reason -> screenshots [freeform=true]
+    screenshots -> commit_shots
+    commit_shots -> push
+    push -> pr_upsert
+    pr_upsert -> report
+    report -> exit
+}

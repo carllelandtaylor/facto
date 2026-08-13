@@ -1,0 +1,176 @@
+digraph FactoResearch {
+    graph [goal="Produce a dated, fully cited HTML research report using parallel research and an adversarial fact-check loop"]
+    rankdir=LR
+
+    start [shape=Mdiamond, label="Start"]
+    exit  [shape=Msquare, label="Exit"]
+
+    // Phase 1: Scope clarification (mandatory). Wrong scope wastes the most context.
+    scope [
+        shape=hexagon,
+        max_visits=3,
+        label="What should this report answer, in one sentence? Also tell me: which facts or dimensions to capture for each thing investigated (prose, structured columns, or both), whether an existing HTML report should be matched for layout and CSS, and where the file should be written.",
+        question_type="freeform"
+    ]
+
+    shape_gate [
+        shape=hexagon,
+        label="What shape should the output take? This drives both the HTML structure and how the research is chunked."
+    ]
+
+    scope_summary [
+        label="Summarize Scope",
+        shape=tab,
+        prompt="Summarize the locked scope back to the developer in 5-10 bullets, drawn only from their answers at the two gates above and from the run goal: {{ goal }}.\n\nCover every one of these, marking any the developer did not specify as taking the default:\n1. The question the report must answer, in one sentence.\n2. The shape of the output (deep dive, comparison, survey, timeline, Q&A, faceted analysis, narrative, or mixed).\n3. The facts and dimensions to capture per subject, and whether they belong in prose, structured columns, or both.\n4. Date and confidence handling. Default: never guess a date — write `date unknown` when the source does not say. Default confidence marks: checkmark for confirmed (primary source or well-known reliable secondary), question mark for unsure (paraphrase, rumor, leak, undated).\n5. No-finding handling. Reaffirm that a question which cannot be answered gets an explicit `no data found` block naming exactly where you searched — never a quiet omission.\n6. Dubious-info handling. Confirm that rumored or unverified material is included when relevant but marked prominently with the reason it is uncertain.\n7. The style reference, if the developer named an existing report to match. Its layout and CSS are read for structure only; none of its content is imported.\n8. The output path. Default is a NEW file named `YYYY-MM-DD-<slug>.html`, where the date comes from running `date +%Y-%m-%d` at run time and `<slug>` is a short kebab-case form of the topic. Exception: if the developer explicitly named an existing dated report to extend, state clearly that this run will EDIT that file in place and keep its original date. Do not offer the edit path when the developer has not named a file.\n\nEnd with the exact path this run will write to."
+    ]
+
+    confirm [
+        shape=hexagon,
+        label="Is this scope correct? Research starts as soon as you confirm."
+    ]
+
+    plan_chunks [
+        label="Plan Research Chunks",
+        shape=tab,
+        prompt="Chunk the research into three independent portions that can be investigated in parallel without overlap. Match the chunking to the shape confirmed above:\n\n- Survey or comparison: split by subject — one chunk per subject, or batched subjects.\n- Deep dive on one topic: split by sub-question or by aspect (history, current state, controversies, edge cases).\n- Timeline: split by era.\n- Multi-question report: split by question.\n- Genuinely single-thread research: still split, but by angle of attack, so the three chunks corroborate rather than duplicate each other.\n\nWrite the assignment as three numbered chunks, each with its own scope statement, the specific sub-questions it owns, and an explicit note of what it must NOT cover because another chunk owns it. Chunk 1 is for the first research branch, chunk 2 for the second, chunk 3 for the third. Also restate today's date and the overall question so each branch carries them."
+    ]
+
+    research_fanout [label="Research Fan-Out", shape=component, max_parallel=3]
+
+    research_one [
+        label="Research Chunk 1",
+        prompt="You own CHUNK 1 of the research plan above. Investigate only your chunk; another agent owns each of the others.\n\nSearch the web and any other sources available to you, and return structured markdown findings. Hard rules:\n- Do not make anything up. If a question in your chunk cannot be answered, say so explicitly and list exactly where you searched.\n- Cite every fact with the URL it came from. A claim with no source is a bug.\n- Never guess a date. Write `date unknown` when the source does not state one.\n- Distinguish primary sources from secondary ones, and mark each fact confirmed or unsure. Unsure means paraphrase, rumor, leak, or undated — and for every unsure item, say why it is uncertain.\n- Include rumored or unverified material when it is relevant, flagged as such; do not silently drop it.\n\nReturn: a findings section per sub-question, each fact with its date, confidence, source URL, and a short description; then a flat list of every source you used, with the URL and your own short name for the page."
+    ]
+
+    research_two [
+        label="Research Chunk 2",
+        prompt="You own CHUNK 2 of the research plan above. Investigate only your chunk; another agent owns each of the others.\n\nSearch the web and any other sources available to you, and return structured markdown findings. Hard rules:\n- Do not make anything up. If a question in your chunk cannot be answered, say so explicitly and list exactly where you searched.\n- Cite every fact with the URL it came from. A claim with no source is a bug.\n- Never guess a date. Write `date unknown` when the source does not state one.\n- Distinguish primary sources from secondary ones, and mark each fact confirmed or unsure. Unsure means paraphrase, rumor, leak, or undated — and for every unsure item, say why it is uncertain.\n- Include rumored or unverified material when it is relevant, flagged as such; do not silently drop it.\n\nReturn: a findings section per sub-question, each fact with its date, confidence, source URL, and a short description; then a flat list of every source you used, with the URL and your own short name for the page."
+    ]
+
+    research_three [
+        label="Research Chunk 3",
+        prompt="You own CHUNK 3 of the research plan above. Investigate only your chunk; another agent owns each of the others.\n\nSearch the web and any other sources available to you, and return structured markdown findings. Hard rules:\n- Do not make anything up. If a question in your chunk cannot be answered, say so explicitly and list exactly where you searched.\n- Cite every fact with the URL it came from. A claim with no source is a bug.\n- Never guess a date. Write `date unknown` when the source does not state one.\n- Distinguish primary sources from secondary ones, and mark each fact confirmed or unsure. Unsure means paraphrase, rumor, leak, or undated — and for every unsure item, say why it is uncertain.\n- Include rumored or unverified material when it is relevant, flagged as such; do not silently drop it.\n\nReturn: a findings section per sub-question, each fact with its date, confidence, source URL, and a short description; then a flat list of every source you used, with the URL and your own short name for the page."
+    ]
+
+    research_join [
+        label="Collect Findings",
+        shape=tripleoctagon,
+        prompt="Collect the three research branches into one consolidated findings set. Keep every fact with its date, confidence marker, source URL, and description intact — do not summarize away detail that the report will need.\n\nMerge the three source lists into a single deduplicated list and assign each source a stable anchor ID: S1, S2, S3, and so on, with S2b style suffixes when a later addition belongs beside an existing source. Note which facts came back with no supporting source and which sub-questions came back empty, since those become explicit no-data blocks rather than quiet omissions. Flag any place where two branches contradict each other."
+    ]
+
+    // Phase 3: Synthesis into one HTML file.
+    synthesize [
+        label="Synthesize Report",
+        prompt="Assemble ONE HTML file at the path locked in the scope summary. Touch exactly that file and no other — the new dated report by default, or the existing report the developer named. Any other file means stop and ask.\n\nIf you are editing an existing report, read it first, add the new material in the structurally correct place, append new sources with non-colliding anchor IDs, and use targeted edits rather than a full rewrite. Leave existing content alone; contradictions are handled by the later triage step.\n\nThis is a kit of components, not a fixed template. Pick what fits the confirmed shape: prose sections (h2 plus paragraphs and lists) for narrative and deep dives; a comparison or faceted table with rows as subjects and columns as facets; per-subject sections each containing a four-column facts table (Date / Confidence / Fact / Description) for structured surveys; Q&A blocks with the question as h2; a chronological timeline with dates left and events right; side-by-side two-column tables for pros and cons.\n\nEvery report includes this infrastructure regardless of shape: the CSS and JS block from the skill's template (or lifted verbatim from the style reference, when one was given); a sources table at the bottom keyed by the stable anchor IDs assigned above; sortable column headers and the row-flash-on-target behavior; and an intro block explaining the column meanings, the confidence symbols, the date convention, the no-data convention, and the unverified-material convention — whichever apply here.\n\nCitation discipline. Every fact carries an inline citation linking to its sources-table anchor, in the form of an anchor tag whose href is the fragment `#S5` and whose text is `S5`. The Name column in the sources table is your own name for the page, not the literal title element. The URL column shows a short readable form — host plus significant path — while the full URL goes in the href. A claim with no source is a bug: find a source or remove the claim.\n\nConventions. Confidence is a checkmark for confirmed (primary source or well-known reliable secondary) or a question mark for unsure (paraphrase, rumor, leak, undated); for every unsure item the surrounding description must say WHY it is uncertain. Dates are a real date or quarter, or `date unknown`, or the overdue date style for a promise whose date has passed.\n\nNo-data and unverified handling. A sub-question that came back empty gets a `.not-found` block naming the question, what you searched, and a clear `no data located` verdict. Unverified material is rendered inline with the unsure marker and the `.row-unsure` row tint inside tables — never hidden on a separate page, because the reader needs it next to the topic it relates to.\n\nAvoid the known traps: no plain bullet lists where a group has four or more facts (use a table); no redundant callout above a table that already carries unsure markers inside it; no `:target` highlight without a fade-out; and no narrow body — 980px max-width is the right default, not 820px.\n\nWrite the file, then state its path."
+    ]
+
+    // Phase 4: Adversarial fact-check, same chunking as Phase 2. Non-negotiable.
+    factcheck_fanout [label="Fact-Check Fan-Out", shape=component, max_parallel=3]
+
+    factcheck_one [
+        label="Fact-Check Chunk 1",
+        prompt="Adversarially attack the portion of the report that corresponds to CHUNK 1 of the research plan. Read the report file at the path stated above.\n\nYour job is to find what is wrong, not to agree. Re-fetch the cited sources yourself and check each claim in your portion for: fabrication (a fact no source supports), a citation that does not say what the report claims it says, a date that was guessed rather than sourced, a claim that was true once but is now stale, a primary/secondary mix-up in the confidence marker, a mischaracterized source, or a finding the research turned up that the report quietly omitted.\n\nFirst-pass research reliably contains several of these — a portion with zero findings usually means you did not look hard enough. Report each finding as: the exact text in the report, what is wrong with it, the evidence URL you checked, and the specific correction you propose. Do not edit the report yourself."
+    ]
+
+    factcheck_two [
+        label="Fact-Check Chunk 2",
+        prompt="Adversarially attack the portion of the report that corresponds to CHUNK 2 of the research plan. Read the report file at the path stated above.\n\nYour job is to find what is wrong, not to agree. Re-fetch the cited sources yourself and check each claim in your portion for: fabrication (a fact no source supports), a citation that does not say what the report claims it says, a date that was guessed rather than sourced, a claim that was true once but is now stale, a primary/secondary mix-up in the confidence marker, a mischaracterized source, or a finding the research turned up that the report quietly omitted.\n\nFirst-pass research reliably contains several of these — a portion with zero findings usually means you did not look hard enough. Report each finding as: the exact text in the report, what is wrong with it, the evidence URL you checked, and the specific correction you propose. Do not edit the report yourself."
+    ]
+
+    factcheck_three [
+        label="Fact-Check Chunk 3",
+        prompt="Adversarially attack the portion of the report that corresponds to CHUNK 3 of the research plan. Read the report file at the path stated above.\n\nYour job is to find what is wrong, not to agree. Re-fetch the cited sources yourself and check each claim in your portion for: fabrication (a fact no source supports), a citation that does not say what the report claims it says, a date that was guessed rather than sourced, a claim that was true once but is now stale, a primary/secondary mix-up in the confidence marker, a mischaracterized source, or a finding the research turned up that the report quietly omitted.\n\nFirst-pass research reliably contains several of these — a portion with zero findings usually means you did not look hard enough. Report each finding as: the exact text in the report, what is wrong with it, the evidence URL you checked, and the specific correction you propose. Do not edit the report yourself."
+    ]
+
+    factcheck_join [
+        label="Collect Fact-Check Findings",
+        shape=tripleoctagon,
+        prompt="Merge the three adversarial passes into a single numbered triage list. Deduplicate findings that name the same claim, and keep for each entry: the exact report text at issue, what the checker says is wrong, the evidence URL it cited, and the proposed correction. Order the list so that fabrications and wrong facts come before date errors, which come before staleness and marker corrections. Note the total count so nothing can fall off the table later."
+    ]
+
+    // Phase 5: Triage. The orchestrator owns ground truth.
+    triage [
+        label="Triage and Verify",
+        prompt="Work the numbered triage list to closure. YOU own ground truth here — fact-check agents hallucinate too, so never apply a change on a checker's say-so alone.\n\nFor every finding, in order:\n1. Re-fetch the cited evidence independently — fetch the web page yourself, or use the `gh` CLI when the source is hosted on GitHub, since `gh` is far more reliable than scraping.\n2. If the finding is confirmed, edit the report to apply the fix. Keep the citation, confidence marker, and date conventions intact while you do it.\n3. If the finding is wrong, leave the report alone and record why you rejected it — that rejection goes into the summary you deliver.\n4. Track every finding to closure. Do not silently drop one because you were unsure how to handle it; an unresolved finding is reported as unresolved, with the reason.\n\nKeep a running checklist so the count of findings closed matches the count collected. When you are done, report how many findings were applied, how many were rejected and why, and how many remain open."
+    ]
+
+    // Phase 6: Format review with fresh context — presentation only, no new facts.
+    format_review [
+        label="Format Review",
+        fidelity="truncate",
+        prompt="Review the report for structural and presentation problems ONLY. Do not check facts, do not add facts, and do not remove a claim because you doubt it — that work is already done.\n\nStart by reading, in this order: the developer's original request and their scope answers as recorded in the report's own intro and in the run goal ({{ goal }}); then the report file itself; then the style reference file, if the scope named one.\n\nCheck that the report answers the question that was actually asked, in the shape that was actually requested. Then check the presentation: the sources table is present and every inline citation resolves to an anchor that exists; anchor IDs are unique; sortable headers and the target-row flash-and-fade behave; the intro block explains every convention the report actually uses; unsure items carry both the marker and the row tint; no-data blocks are present where a sub-question came back empty; groups of four or more facts are in tables rather than bullet lists; there is no redundant callout duplicating what a table already marks; and the body max-width is 980px rather than something narrower.\n\nApply every reasonable presentation fix directly to the report file. Then state either PASS, or the list of fixes you applied and anything structural you could not fix."
+    ]
+
+    deliver [
+        label="Deliver",
+        shape=tab,
+        fidelity="summary:high",
+        prompt="Deliver the report. State the exact file path, then give a one-paragraph summary of what is in it: the question it answers, its shape, how many subjects or sub-questions it covers, and how many sources it cites.\n\nThen state, briefly: which fact-check findings were applied, which were rejected and why, which remain open, and which sub-questions produced explicit no-data blocks. Do not overstate confidence — if a section rests mostly on unsure sources, say so here rather than leaving the reader to infer it from the markers."
+    ]
+
+    // Phase 7: Iteration support. Loops until the developer says they are done.
+    iterate [
+        shape=hexagon,
+        max_visits=6,
+        label="Anything to change about the report?"
+    ]
+
+    iterate_style [
+        label="Apply Layout Changes",
+        prompt="Apply the developer's requested layout, styling, or structural change directly to the report file. Read their request from the human gate answer in the context above.\n\nIf they pointed at a different style reference, read that file for its layout and CSS and adapt the report to match — never import its content. Keep every existing citation, anchor ID, confidence marker, and date convention working through the change; a restyle that breaks a citation link is a regression. Touch only the one report file. Report exactly what you changed."
+    ]
+
+    iterate_verify [
+        label="Verify and Add Claims",
+        prompt="The developer wants new claims added to the report. Do NOT trust them at face value, whoever they came from.\n\nFor each claim, verify it independently: find primary sources, fetch them yourself, and check that the claim says what the source says, including its date. Then sort each claim into one of three buckets — confirmed (a primary or well-known reliable secondary source supports it), rumored (some support, but paraphrased, undated, leaked, or otherwise soft), or not supported.\n\nAdd only the confirmed and rumored ones to the report. Confirmed claims get the confirmed marker; rumored claims get the unsure marker plus a description explaining exactly why they are uncertain, and the row tint if they sit in a table. Add every new source to the sources table with a fresh non-colliding anchor ID, and cite it inline. Do not add an unsupported claim — report it back as unsupported and say where you searched."
+    ]
+
+    final [
+        label="Final Summary",
+        shape=tab,
+        prompt="Close out the run. State the final report path, the total number of sources cited, and the iteration rounds that were applied after first delivery. List anything that remains open: rejected or unresolved fact-check findings, sub-questions with no data located, and any claim the developer asked for that could not be supported. Confirm that exactly one HTML file was written or edited during this run."
+    ]
+
+    start -> scope
+    scope -> shape_gate [freeform=true]
+
+    shape_gate -> scope_summary [label="[D] Deep dive on one topic"]
+    shape_gate -> scope_summary [label="[C] Comparison across subjects"]
+    shape_gate -> scope_summary [label="[S] Survey with structured findings"]
+    shape_gate -> scope_summary [label="[T] Historical timeline"]
+    shape_gate -> scope_summary [label="[Q] Q&A on focused questions"]
+
+    scope_summary -> confirm
+    confirm -> plan_chunks [label="[Y] Scope confirmed, start research"]
+    confirm -> scope       [label="[R] Revise the scope"]
+
+    plan_chunks -> research_fanout
+    research_fanout -> research_one
+    research_fanout -> research_two
+    research_fanout -> research_three
+    research_one -> research_join
+    research_two -> research_join
+    research_three -> research_join
+    research_join -> synthesize
+
+    synthesize -> factcheck_fanout
+    factcheck_fanout -> factcheck_one
+    factcheck_fanout -> factcheck_two
+    factcheck_fanout -> factcheck_three
+    factcheck_one -> factcheck_join
+    factcheck_two -> factcheck_join
+    factcheck_three -> factcheck_join
+    factcheck_join -> triage
+
+    triage -> format_review
+    format_review -> deliver
+    deliver -> iterate
+
+    iterate -> iterate_style  [label="[S] Layout or styling changes"]
+    iterate -> iterate_verify [label="[A] Add or verify new claims"]
+    iterate -> final          [label="[D] Done, deliver as is"]
+    iterate_style -> iterate
+    iterate_verify -> iterate
+
+    final -> exit
+}
