@@ -43,11 +43,15 @@ Walk through the following phases in order. Finish each phase before starting th
 
 ## Phase 1: Get Brain Dump
 
-Start immediately with a single open-ended prompt. Do not introduce yourself, do not explain the process, do not list what you're going to do. Just ask:
+Don't introduce yourself, explain the process, or explore the codebase yet — just establish the brain dump, then continue to Phase 2.
+
+First, bootstrap from the associated Issue. If its body is already in the conversation, use that. Otherwise, if `facto-helper.sh current-issue` resolves a number, read that Issue (`gh issue view`) and treat its title + body as the brain dump — post a one-line notice and go straight to Phase 2 without waiting:
+
+> "Booting from Issue #<N>: *<title>* — correct me if the scope is different."
+
+If no Issue resolves, fall back to the open-ended prompt and wait:
 
 > "To start: give me a quick summary on what you're thinking about building or changing. We'll go into more detail soon."
-
-Just listen. Don't ask any follow-up questions yet, and don't start exploring the code base, just continue to Phase 2.
 
 ---
 
