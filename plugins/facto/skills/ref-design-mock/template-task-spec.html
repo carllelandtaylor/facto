@@ -7,9 +7,10 @@
        to replace with real design. Replace the slot's CONTENTS — never the
        surrounding device chrome (status bar / gesture bar / window frame).
     3. The bands (cover, then one flow band per flow, then states,
-       components, before/after, tokens) are labeled scaffolding — each
-       band's header comment says what it's for and when to duplicate or
-       remove it. Add or remove frames/slots as the design requires.
+       environmental edge cases, components, before/after, tokens) are
+       labeled scaffolding — each band's header comment says what it's for
+       and when to duplicate or remove it. Add or remove frames/slots as
+       the design requires.
     4. FRAME TYPES: pick .phone.android / .phone.ios / .browser by target
        platform; use .bare-frame for components. The Appendix band shows each.
     5. Token :root block below: replace placeholder values with values generated
@@ -25,10 +26,10 @@
     - fit() runs on load AND after 250 ms — the second call catches layout
       shifts from fonts/images that settle after DOMContentLoaded.
     - Serve over HTTP (not file://) if frames contain cross-origin resources.
-    - tests/template-task-spec.test.sh pins the BAND 1 and BAND 3 header-comment
-      wording, the .connector-label markup, and the :root / .t-dark token
-      defaults. Reword or restructure those and update that suite in the same
-      change.
+    - tests/template-task-spec.test.sh pins the flow band's and the components
+      band's header-comment wording, the .connector-label markup, and the
+      :root / .t-dark token defaults. Reword or restructure those and update
+      that suite in the same change.
 
   PROJECT-AGNOSTIC WARNING:
     Never write product token values, brand colors, product font names, or
@@ -541,7 +542,16 @@
      to the measured viewport (e.g. 1280) rather than redeclaring .browser — the
      template only *consumes* this var, so your value wins uncontested regardless
      of stylesheet order, and the page is never clipped by a too-narrow frame.
-     The 720px fallback is the generic default. */
+     The 720px fallback is the generic default. Height is variable-driven too:
+     set --frame-height on the frame (consumed by .browser-page below) so a
+     short viewport can be drawn. When declared it is the page's exact height,
+     not a floor — content taller than it is clipped, the way a real short
+     window clips, so an overflowing design cannot render as if it fits.
+     Undeclared, the page grows with its content from the 440px generic
+     default. Note the two axes are not symmetric: --frame-width sizes the
+     bordered .browser box, --frame-height sizes the .browser-page inside it,
+     so a declared width yields a page 4px narrower (the 2px border each
+     side). */
   .browser {
     border: 2px solid var(--border, #d0d0d0);
     border-radius: 10px;
@@ -554,7 +564,11 @@
   /* Web page content area — the design fill area, edge-to-edge */
   .browser-page {
     background: var(--surface);
-    min-height: 440px;
+    min-height: var(--frame-height, 440px);
+    /* No fallback here on purpose: with --frame-height unset this declaration
+       is invalid at computed-value time and resolves to `none`, leaving the
+       page free to grow exactly as it did before. */
+    max-height: var(--frame-height);
     display: flex;
     flex-direction: column;
     color: var(--text);
@@ -807,7 +821,70 @@
       </div><!-- /band 2 per-screen states -->
 
       <!-- ══════════════════════════════════════════════════════════
-           BAND 3 — COMPONENTS IN ISOLATION
+           BAND 3 — ENVIRONMENTAL EDGE CASES
+           One frame per environmental edge case whose handling materially
+           changes the layout. An edge case whose handling is "no visual
+           change" or "unsupported — out of scope" is recorded in the design
+           doc only and gets no frame here. A frame is not a substitute for
+           writing the handling down. Remove this entire band if no edge
+           case changes the layout — not every mock carries it. The frame is
+           the variable: for a size edge case set --frame-width and/or
+           --frame-height on a .browser, or --screen-width/--screen-height on
+           a .phone-screen, rather than redeclaring the class. Use the pair
+           that belongs to the frame type — the other pair is ignored, and
+           the frame silently renders at its default size.
+           Not every edge case is a size. Theme, text scale, and content
+           volume are drawn at the reference size with the condition
+           applied.
+           ══════════════════════════════════════════════════════════ -->
+      <div class="band">
+        <div class="band-header">
+          <span class="band-label">Environmental Edge Cases</span>
+          <span class="band-sublabel">Conditions whose handling changes the layout — see the design doc for the full list</span>
+        </div>
+        <div class="band-frames">
+
+          <!-- TODO: replace with the size edge case that changes the layout -->
+          <div class="frame">
+            <span class="frame-title"><!-- TODO: e.g. Narrow / short viewport — 900×420 --></span>
+            <div class="browser" style="--frame-width:900px;--frame-height:420px">
+              <div class="browser-page">
+                <div class="design-slot">Layout at this size</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TODO: replace with the non-size edge case that changes the layout -->
+          <div class="frame">
+            <span class="frame-title"><!-- TODO: e.g. Dark mode --></span>
+            <div class="phone android">
+              <div class="phone-screen t-dark">
+                <div class="status-bar">
+                  <span class="sb-time">9:41</span>
+                  <span class="sb-icons">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="signal"><rect x="1" y="14" width="4" height="9" rx="1"/><rect x="7" y="9" width="4" height="14" rx="1"/><rect x="13" y="4" width="4" height="19" rx="1"/><rect x="19" y="1" width="4" height="22" rx="1"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="wifi"><path d="M1.5 8.5C5.5 4.5 10.5 2.5 12 2.5s6.5 2 10.5 6"/><path d="M5 13c1.9-2 4.4-3 7-3s5.1 1 7 3"/><path d="M8.5 17.5c.9-.9 2.1-1.5 3.5-1.5s2.6.6 3.5 1.5"/><circle cx="12" cy="21" r="1.5"/></svg>
+                    <svg width="14" height="10" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" title="battery"><rect x="1" y="2" width="19" height="12" rx="2"/><path d="M20 6v4" stroke-width="2.5" stroke-linecap="round"/><rect x="3" y="4" width="13" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </span>
+                </div>
+                <div class="screen-body">
+                  <!-- TODO: same layout with the condition applied -->
+                  <div class="design-slot">Same layout, condition applied</div>
+                </div>
+                <div class="bottom-indicator">
+                  <div class="nav-pill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TODO: add one frame per additional environmental edge case whose handling changes the layout; remove this band entirely if none do -->
+
+        </div>
+      </div><!-- /band 3 environmental edge cases -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           BAND 4 — COMPONENTS IN ISOLATION
            Each bare frame = one logically related group of components (e.g.
            all variants of a single component, or a tightly related set like
            a checkbox + its label). Do NOT mix unrelated components in the
@@ -850,10 +927,10 @@
           </div>
 
         </div>
-      </div><!-- /band 3 components -->
+      </div><!-- /band 4 components -->
 
       <!-- ══════════════════════════════════════════════════════════
-           BAND 4 — BEFORE / AFTER
+           BAND 5 — BEFORE / AFTER
            Changed screens side-by-side: what exists today vs. the new design.
            Only include this band if the feature modifies existing screens.
            If it's a net-new feature with no changed screens, remove the band.
@@ -920,10 +997,10 @@
           <!-- TODO: add more before/after pairs for additional changed screens -->
 
         </div>
-      </div><!-- /band 4 before/after -->
+      </div><!-- /band 5 before/after -->
 
       <!-- ══════════════════════════════════════════════════════════
-           BAND 5 — TOKEN REFERENCE
+           BAND 6 — TOKEN REFERENCE
            Color swatches, type-scale specimens, spacing and radius tiles —
            all driven by the :root token block at the top of <style>.
            Replace the stub labels with real token names from design-system.md.
@@ -1066,7 +1143,7 @@
           </div>
 
         </div>
-      </div><!-- /band 5 token reference -->
+      </div><!-- /band 6 token reference -->
 
       <!-- ══════════════════════════════════════════════════════════
            APPENDIX — FRAME REFERENCE
