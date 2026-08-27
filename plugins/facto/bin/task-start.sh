@@ -364,17 +364,29 @@ if [[ -n "$_ts_issue_number" ]]; then
   fi
 fi
 
-# Run project-specific setup hook if it exists
+# Run project-specific setup hook if it exists.
+# A failing hook does not undo anything: the developer may want to inspect the
+# half-built worktree or re-run setup by hand once they have fixed the cause.
+# It must not be mistaken for a working one either, so the failure is repeated
+# in red at the very end of the run, below the summary, where it cannot scroll
+# away the way the hook's own output does.
+_ts_setup_failed=0
 if [[ -f "${_ts_repo_root}/.facto/worktree-setup.sh" ]]; then
   echo "Running project worktree-setup hook..."
-  bash "${_ts_repo_root}/.facto/worktree-setup.sh" "$_ts_worktree_dir"
+  if ! bash "${_ts_repo_root}/.facto/worktree-setup.sh" "$_ts_worktree_dir"; then
+    _ts_setup_failed=1
+  fi
 fi
 
 # Change caller's CWD into the worktree
 cd "$_ts_worktree_dir"
 
 echo ""
-echo "Worktree ready:"
+if [[ "$_ts_setup_failed" -eq 1 ]]; then
+  echo "Worktree created, but SETUP FAILED:"
+else
+  echo "Worktree ready:"
+fi
 echo "  Branch:    ${_ts_branch}"
 echo "  Directory: ${_ts_worktree_dir}"
 if [[ -n "$_ts_issue_number" ]]; then
@@ -387,7 +399,33 @@ if [[ -n "$_ts_issue_number" ]]; then
 fi
 echo ""
 
+# Shout about a failed setup hook last of all, so it is what the developer is
+# left looking at. Colour only when stdout is a terminal, so a captured log
+# stays readable.
+if [[ "$_ts_setup_failed" -eq 1 ]]; then
+  if [[ -t 1 ]]; then
+    _ts_red=$'\033[1;31m'
+    _ts_reset=$'\033[0m'
+  else
+    _ts_red=""
+    _ts_reset=""
+  fi
+  echo "${_ts_red}========================================================================${_ts_reset}"
+  echo "${_ts_red}  SETUP FAILED — THIS WORKTREE MAY NOT BE CONFIGURED CORRECTLY.${_ts_reset}"
+  echo "${_ts_red}${_ts_reset}"
+  echo "${_ts_red}  The project's .facto/worktree-setup.sh exited non-zero. Its output is${_ts_reset}"
+  echo "${_ts_red}  further up this run — read it before working here.${_ts_reset}"
+  echo "${_ts_red}${_ts_reset}"
+  echo "${_ts_red}  The worktree and branch were left in place. Once you have fixed what${_ts_reset}"
+  echo "${_ts_red}  the hook reported, re-run it by hand:${_ts_reset}"
+  echo "${_ts_red}${_ts_reset}"
+  echo "${_ts_red}    bash ${_ts_repo_root}/.facto/worktree-setup.sh ${_ts_worktree_dir}${_ts_reset}"
+  echo "${_ts_red}========================================================================${_ts_reset}"
+  echo ""
+fi
+
 # Clean up temporary variables
+unset _ts_red _ts_reset
 unset _ts_main_repo _ts_git_dir _ts_description _ts_repo_root
 unset _ts_main_branch _ts_prefix _ts_slug _ts_title_slug _ts_branch _ts_worktree_dir
 unset _ts_issue_input _ts_issue_number _ts_issue_url _ts_issue_title _ts_issue_labels_json _ts_issue_json
@@ -397,3 +435,11 @@ unset _ts_project_owner _ts_project_number _ts_status_field_name _ts_in_progress
 unset _ts_project_id _ts_status_field_json _ts_status_field_id _ts_in_progress_id _ts_item_id
 unset _ts_tracker_type _ts_branch_input _ts_branch_prefix _ts_branch_pattern _ts_basic_pattern
 unset _ts_issue_number_arg
+
+# Return non-zero when the setup hook failed, so the run's status matches what
+# the banner says. Kept until here because the unsets above would clear it.
+if [[ "$_ts_setup_failed" -eq 1 ]]; then
+  unset _ts_setup_failed
+  return 1
+fi
+unset _ts_setup_failed
