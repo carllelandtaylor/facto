@@ -510,4 +510,27 @@ if [[ "$(jq -r '.issue_number | type' "$_task_json")" != "number" ]]; then
 fi
 _cleanup "$_branch"
 
+# -----------------------------------------------------------------------
+# Case: no_upstream
+# The worktree must be created with NO upstream. Branching from a
+# remote-tracking ref auto-sets one (branch.autoSetupMerge=true), and that
+# upstream would be origin/<main> — a branch that this one is not a copy of.
+# facto:pr read exactly that as proof the branch had already been pushed
+# (Issue #116), so --no-track is load-bearing, not cosmetic.
+# -----------------------------------------------------------------------
+echo "  testing: no_upstream"
+rm -f "$_GH_SENTINEL"
+_out="$(cd "$_TMP" && source "$_SCRIPT_UNDER_TEST" --branch feat/77-no-upstream-check 2>&1)"
+_branch="feat/77-no-upstream-check"
+_wt="$_TMP/.facto/worktrees/77-no-upstream-check"
+if [[ ! -d "$_wt" ]]; then
+  echo "FAIL: no_upstream — expected worktree dir '$_wt'" >&2
+  exit 1
+fi
+if git -C "$_wt" rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+  echo "FAIL: no_upstream — worktree has an upstream ($(git -C "$_wt" rev-parse --abbrev-ref --symbolic-full-name '@{u}')); --track must not come back" >&2
+  exit 1
+fi
+_cleanup "$_branch"
+
 echo "PASS: task-start parsing matrix"
