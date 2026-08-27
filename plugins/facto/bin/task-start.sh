@@ -289,7 +289,13 @@ fi
 _ts_worktree_dir="${_ts_repo_root}/.facto/worktrees/${_ts_slug}"
 mkdir -p "$(dirname "$_ts_worktree_dir")"
 
-git worktree add --track "$_ts_worktree_dir" -b "$_ts_branch" "origin/${_ts_main_branch}" --quiet
+# --no-track, deliberately. Git's default branch.autoSetupMerge=true already
+# sets an upstream when the start point is a remote-tracking ref, so --track was
+# redundant — and the upstream it set (origin/<main>) is false for a feature
+# branch: the branch does not exist on the remote at all yet. facto:pr read that
+# upstream as proof the branch had been pushed and chose a plain `git push`
+# instead of the first-push with -u (Issue #116). Do not restore --track.
+git worktree add --no-track "$_ts_worktree_dir" -b "$_ts_branch" "origin/${_ts_main_branch}" --quiet
 if [[ $? -ne 0 ]]; then
   echo "Error: failed to create worktree."
   return 1

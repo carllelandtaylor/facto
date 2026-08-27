@@ -21,6 +21,8 @@ Create or update a GitHub pull request with a thorough summary, requirements con
 ## User Authorization for Force-Push-with-Lease
 
 > **User authorization for force-push-with-lease.** Running `/facto:pr` constitutes user pre-authorization for `git push --force-with-lease` on the current branch when `facto:commit-or-amend` has rewritten history. The user has reviewed this authorization and accepts it by invoking this skill. `--force-with-lease` (never bare `--force`) preserves the safety net: it refuses to push if the remote moved unexpectedly.
+>
+> The lease is the plain `--force-with-lease`, with no explicit value: it leases against the remote-tracking ref, which records what this clone last saw. That is the comparison that catches someone else having pushed to the branch in the meantime. Never substitute an explicit `--force-with-lease=<branch>:<sha>` read live from the remote — that value always matches, so the push can never be refused and the lease quietly becomes a bare `--force`. You do not construct this yourself; Phase 5 runs the command `facto-helper.sh push-plan` prints.
 
 ---
 
@@ -41,14 +43,14 @@ If a caller already supplied the base ref, the reason for the change, a one-line
 Gather all branch state in **one** command — each separate call re-bills the full cached context, so batch them:
 ```bash
 git branch --show-current; echo '---LOG---'; git log main..HEAD --oneline; echo '---STAT---'; \
-git diff main...HEAD --stat; echo '---STATUS---'; git status --porcelain; echo '---REMOTE---'; \
-git diff @{u}..HEAD --quiet 2>/dev/null; echo "remote_uptodate=$?"
+git diff main...HEAD --stat; echo '---STATUS---'; git status --porcelain; echo '---PUSH---'; \
+facto-helper.sh push-plan
 ```
-This returns the branch name, the commits going into the PR, the changed files, the working-tree state, and whether the remote is already up to date. `remote_uptodate=0` means the remote matches HEAD (no diff); any non-zero value — including `128` when the branch has no upstream yet — means there is something to push, so proceed.
+This returns the branch name, the commits going into the PR, the changed files, the working-tree state, and the push plan. The `action=` line of the push plan is the signal for whether anything needs pushing: `nothing-to-push` means the remote already has this branch's work, and any other value (`first-push`, `push`, `force-with-lease`) means there is something to push.
 
 If the working tree is not clean (staged or unstaged changes exist), run `/facto:commit-or-amend` via the Skill tool with the base ref (`main`) and any relevant context, then continue — do not stop. This preserves its full fixup/attribution behavior.
 
-If the remote is up to date (`remote_uptodate=0`) and the working tree was clean, there are no new changes to reflect — report "Nothing new to put in a PR" and stop.
+If `action=nothing-to-push` **and** the working tree was clean, there are no new changes to reflect — report "Nothing new to put in a PR" and stop. Both conditions are required: a dirty tree means `/facto:commit-or-amend` runs first and creates commits, which changes the answer, so the push plan read before that commit no longer applies.
 
 ---
 
@@ -140,29 +142,22 @@ If the change is visual but no viable way to run the app and capture a screensho
 
 ## Phase 5: Push the Branch
 
-Determine which of three cases applies from a single check, then run the matching push command:
+Ask for the push plan, then run the command it gives you:
 ```bash
-git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null \
-  && echo "ahead=$(git rev-list --count @{u}..HEAD) behind=$(git rev-list --count HEAD..@{u})" \
-  || echo "no-upstream"
+facto-helper.sh push-plan
 ```
 
-- **Case A — No upstream** (`no-upstream`): push and set upstream.
-  ```bash
-  git push -u origin <branch-name>
-  ```
+It prints `action=` and `command=` (among other fields). Run the `command=` line **verbatim** — it is already the correct push for this branch's state. If `action=nothing-to-push`, the `command=` line is empty; skip the push entirely and go to Phase 6.
 
-- **Case B or C — Has upstream**: use the `ahead`/`behind` counts to choose the push.
+The three possible commands, for recognition only — do not choose between them yourself:
 
-  - **Case B — `behind == 0`** (local fast-forwards remote, no divergence): a plain push will succeed.
-    ```bash
-    git push
-    ```
+| `action` | `command` |
+|---|---|
+| `first-push` | `git push -u origin <branch>` |
+| `push` | `git push origin <branch>` |
+| `force-with-lease` | `git push --force-with-lease origin <branch>` |
 
-  - **Case C — `ahead > 0` AND `behind > 0`** (history diverged after a `facto:commit-or-amend` rewrite): use `--force-with-lease`. The user has pre-authorized this via the "User Authorization for Force-Push-with-Lease" section above. Never use bare `--force`.
-    ```bash
-    git push --force-with-lease
-    ```
+> **Why this is delegated, and not decided here.** The obvious check — "does this branch have an upstream?" — is wrong, and got this exact skill wrong (Issue #116). Having an upstream does **not** imply a same-named remote branch exists: `task-start.sh` creates task branches with `git worktree add … origin/<main>`, so every Facto task branch has an upstream of `origin/main` before it has ever been pushed. Reading `@{u}` therefore made a never-pushed branch look already-pushed, and produced a plain `git push` where a `git push -u origin <branch>` was needed. `push-plan` keys on `git ls-remote --heads origin <branch>` instead, which is the question that actually matters. Do not reintroduce an `@{u}` check here.
 
 > **Never wrap `git push` in `bash -c '...'` or any shell wrapper** — this triggers the auto-mode classifier's bypass-detection and hardens its stance for the session. Always invoke the literal command.
 

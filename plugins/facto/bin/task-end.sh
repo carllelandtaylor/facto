@@ -66,19 +66,33 @@ fi
 
 # --- Handle unpushed commits ---
 
-_te_upstream="$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)"
-_te_has_unpushed=false
+# Ask facto-helper.sh how this branch should be pushed. Do NOT infer it from
+# @{upstream}: task-start.sh branches have no upstream now, and older worktrees
+# have one pointing at origin/<main>, so neither its presence nor the commit
+# count against it says anything about whether this branch exists on the remote
+# (Issue #116). push-plan keys on `git ls-remote --heads origin <branch>`.
+_te_push_plan="$(facto-helper.sh push-plan 2>/dev/null)"
+_te_plan_status=$?
 
-if [[ -z "$_te_upstream" ]]; then
-  # No upstream set — check if there are any commits
-  if [[ -n "$(git log --oneline -1 2>/dev/null)" ]]; then
-    _te_has_unpushed=true
-  fi
+if [[ "$_te_plan_status" -ne 0 ]]; then
+  # No origin, detached HEAD, or an unreachable remote. Prompt rather than
+  # skip: silently dropping commits during cleanup is the worse failure.
+  _te_action="unknown"
+  _te_push_cmd="git push -u origin ${_te_branch}"
 else
-  _te_unpushed_count="$(git rev-list "${_te_upstream}..HEAD" --count 2>/dev/null)"
-  if [[ "$_te_unpushed_count" -gt 0 ]]; then
-    _te_has_unpushed=true
-  fi
+  _te_action="$(printf '%s\n' "$_te_push_plan" | grep '^action=' | cut -d= -f2-)"
+  _te_push_cmd="$(printf '%s\n' "$_te_push_plan" | grep '^command=' | cut -d= -f2-)"
+fi
+
+_te_has_unpushed=false
+if [[ "$_te_action" != "nothing-to-push" ]]; then
+  _te_has_unpushed=true
+fi
+
+# Never let an empty command through to eval: `eval ""` succeeds, so the push
+# would silently do nothing and cleanup would go on to remove the worktree.
+if [[ "$_te_has_unpushed" == true && -z "$_te_push_cmd" ]]; then
+  _te_push_cmd="git push -u origin ${_te_branch}"
 fi
 
 if [[ "$_te_has_unpushed" == true ]]; then
@@ -86,15 +100,12 @@ if [[ "$_te_has_unpushed" == true ]]; then
   echo "You have unpushed commits on ${_te_branch}."
   read -r -p "Push before cleaning up? [Y/n]: " _te_push_choice
   if [[ "$_te_push_choice" != "n" && "$_te_push_choice" != "N" ]]; then
-    if [[ -z "$_te_upstream" ]]; then
-      git push -u origin "$_te_branch"
-    else
-      git push
-    fi
+    eval "$_te_push_cmd"
     if [[ $? -ne 0 ]]; then
       echo "Error: push failed. Aborting cleanup."
-      unset _te_main_repo _te_git_dir _te_worktree_path _te_branch _te_upstream
-      unset _te_has_unpushed _te_unpushed_count _te_push_choice
+      unset _te_main_repo _te_git_dir _te_worktree_path _te_branch
+      unset _te_push_plan _te_plan_status _te_action _te_push_cmd
+      unset _te_has_unpushed _te_push_choice
       return 1
     fi
   fi
@@ -147,6 +158,7 @@ echo "Worktree removed. You are now in: $(pwd)"
 echo ""
 
 # Clean up temporary variables
-unset _te_main_repo _te_git_dir _te_worktree_path _te_branch _te_upstream
-unset _te_has_unpushed _te_unpushed_count _te_push_choice _te_choice _te_msg _te_confirm
+unset _te_main_repo _te_git_dir _te_worktree_path _te_branch
+unset _te_push_plan _te_plan_status _te_action _te_push_cmd
+unset _te_has_unpushed _te_push_choice _te_choice _te_msg _te_confirm
 unset _te_main_path _te_delete_branch _te_main_branch _te_merged_count

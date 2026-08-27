@@ -87,6 +87,8 @@ These principles guide how Facto operates and how it's designed. These principle
 
    *Example:* "After two failed validation cycles this skill tends to keep changing unrelated code; stop and reread the original error" — written after watching it happen, not before.
 
+   *Example:* **An upstream is not a remote branch.** `facto:pr` decided how to push by asking whether the branch had an upstream, and read "yes" as "already pushed". Those are independent: git sets an upstream whenever a branch is created from a remote-tracking ref, so every `task-start.sh` task branch tracked `origin/<main>` before it had ever been pushed, and the skill ran a plain `git push` where a first-push with `-u` was required (Issue #116). Push decisions key on `git ls-remote --heads origin <branch>` — the question that actually matters — and live in `facto-helper.sh push-plan` so both `facto:pr` and `task-end.sh` share one tested answer.
+
 8. **Components are provisional, not permanent** — each harness component (skill, hook, scaffolding step) exists because the model couldn't do something well enough alone at the time it was added. Each is an assumption about model capability.
 
    *Why:* model capability moves on every release, so components designed for old failure modes can become counterproductive — over-constraining behavior the model now handles correctly.
@@ -196,20 +198,21 @@ fi-task-test.sh
 
 ### 4.2 - Running the tests
 
-The shell scripts under `plugins/*/bin/` and three static files under
-`plugins/*/skills/` have a small homemade test suite — seven self-contained
+The shell scripts under `plugins/*/bin/` and four static files under
+`plugins/*/skills/` have a small homemade test suite — eight self-contained
 `*.test.sh` files under `plugins/*/bin/tests/` and `plugins/*/skills/*/tests/`,
 no test framework:
 
 | Suite | Covers |
 |---|---|
-| `plugins/facto/bin/tests/facto-helper.test.sh` | `facto-helper.sh` slug normalization, `tasks_dir` resolution, and issue-identifier extraction for both trackers |
+| `plugins/facto/bin/tests/facto-helper.test.sh` | `facto-helper.sh` slug normalization, `tasks_dir` resolution, issue-identifier extraction for both trackers, and the `push-plan` push decision (first-push / push / force-with-lease) against a real bare origin |
 | `plugins/facto/bin/tests/task-start.test.sh` | `task-start.sh` argument parsing — issue detection, branch-name derivation, the `UNKNOWN-` no-issue convention, `--branch`, and the Linear `--issue` form |
 | `plugins/facto/bin/tests/task-list.test.sh` | `task-list.sh` worktree-listing output (snapshot) |
 | `plugins/facto-dev/bin/tests/fi-task-test.test.sh` | `fi-task-test.sh` install-symlink re-pointing (link / reset / preconditions / Facto guard) |
 | `plugins/facto/skills/ref-design-mock/tests/template-task-spec.test.sh` | design-mock task-spec template structure — per-flow bands, connector labels, project-agnostic tokens |
 | `plugins/facto/skills/review-loop-code/tests/skill-structure.test.sh` | review-loop-code severity gate — terminal-cycle rule, terminal-mode fix judgment, retained cycle cap |
 | `plugins/facto/skills/observe/tests/skill-structure.test.sh` | observe's Linear guard — present, worded as a hard stop, and placed before the first GitHub-only call |
+| `plugins/facto/skills/pr/tests/skill-structure.test.sh` | pr's push path — the decision is delegated to `facto-helper.sh push-plan`, no `@{u}` check or bare `--force` is re-inlined, and the recorded gotcha survives |
 
 Each suite is self-contained and safe to run from anywhere: the script suites set
 up their own disposable git repos and assert against them; the three structural
@@ -230,7 +233,7 @@ for t in plugins/*/bin/tests/*.test.sh plugins/*/skills/*/tests/*.test.sh; do ec
 
 **Why homemade, not [bats](https://github.com/bats-core/bats-core)?** The suite is
 tiny, and each test just gives the script some inputs and checks the resulting
-branches, symlinks, or output — or, for the two structural suites, greps a static
+branches, symlinks, or output — or, for the four structural suites, greps a static
 file for the markers it must keep. Plain `bash` keeps it zero-dependency and
 runnable in any checkout or CI step without an install. Revisit bats if the
 suite grows enough that per-test isolation and reporting start to hurt.
