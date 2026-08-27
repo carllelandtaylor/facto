@@ -203,7 +203,7 @@ no test framework:
 
 | Suite | Covers |
 |---|---|
-| `plugins/facto/bin/tests/facto-helper.test.sh` | `facto-helper.sh` slug normalization, `tasks_dir` resolution, and issue-identifier extraction for both trackers |
+| `plugins/facto/bin/tests/facto-helper.test.sh` | `facto-helper.sh` slug normalization, `tasks_dir` resolution, issue-identifier extraction for both trackers, and the `push-plan` push decision (first-push / push / force-with-lease) against a real bare origin |
 | `plugins/facto/bin/tests/task-start.test.sh` | `task-start.sh` argument parsing — issue detection, branch-name derivation, the `UNKNOWN-` no-issue convention, `--branch`, and the Linear `--issue` form |
 | `plugins/facto/bin/tests/task-list.test.sh` | `task-list.sh` worktree-listing output (snapshot) |
 | `plugins/facto-dev/bin/tests/fi-task-test.test.sh` | `fi-task-test.sh` install-symlink re-pointing (link / reset / preconditions / Facto guard) |
