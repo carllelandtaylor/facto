@@ -1,6 +1,6 @@
 ---
 name: setup-facto
-description: "Set up the Facto mechanics. Adds the task-* worktree commands to your shell PATH (once per machine), then optionally wires the current repo to a GitHub Issues + Project tracker by writing .facto/settings.json and dropping worktree setup/teardown hook stubs. Run it once after installing the facto plugin, and again in each new project you want tracker integration for. Invoke with /facto:setup-facto. Procedure skill (follow the phases in order)."
+description: "Set up the Facto mechanics. Adds the task-* worktree commands to your shell PATH (once per machine), then optionally wires the current repo to a GitHub Issues + Project tracker by writing .facto/settings.json, sets whether /facto:pr opens new PRs as drafts, and drops worktree setup/teardown hook stubs. Run it once after installing the facto plugin, and again in each new project you want tracker integration for. Invoke with /facto:setup-facto. Procedure skill (follow the phases in order)."
 disable-model-invocation: true
 color: yellow
 ---
@@ -12,7 +12,7 @@ color: yellow
 Wire up the Facto mechanics so a user goes from "plugin installed" to "ready to work" with no hand-editing of dotfiles or config. Two scopes:
 
 - **Machine-global (once):** put the `task-start` / `task-list` / `task-end` worktree commands on the user's shell PATH (Phases 1–2).
-- **Per-project (per repo, optional):** wire the current repo to a GitHub Issues + Project tracker and drop worktree hook stubs (Phases 3–4).
+- **Per-project (per repo, optional):** wire the current repo to a GitHub Issues + Project tracker, set whether `/facto:pr` creates new PRs as drafts, and drop worktree hook stubs (Phases 3–4).
 
 The machine-global phases are idempotent — re-running this skill in a new project skips them and just does the per-project setup.
 
@@ -66,7 +66,7 @@ Ask the user which tracker the **current repo** should use. The pipeline skills 
 
 Pull requests are GitHub PRs either way; only issue tracking varies.
 
-**If none:** skip to Phase 4.
+**If none:** skip to Phase 3c.
 
 **If Linear:** go to "Phase 3b: Linear" below.
 
@@ -112,6 +112,8 @@ Write `.facto/settings.json` in the repo root (`git rev-parse --show-toplevel`) 
 ```
 
 To keep task planning docs somewhere other than the default `facto-tasks/`, add a top-level `"tasks_dir": "<relative-or-absolute-path>"` to this file. Omit it to use the default.
+
+Then go to Phase 3c.
 
 ### Phase 3b: Linear
 
@@ -168,6 +170,30 @@ claude mcp add --transport http --scope project linear https://mcp.linear.app/mc
 
 Then `/mcp` → `linear` → complete the OAuth login. Note that project scope writes `.mcp.json` at the repo root, which git worktrees only see once it is committed.
 
+## Phase 3c: Initial state for new PRs (per-project, optional)
+
+Ask this whatever tracker was chosen in Phase 3, including none:
+
+> "Should PRs that `/facto:pr` creates in this repo start as drafts or as open PRs? Default: open."
+
+**If open:** an absent setting already means open. If `.facto/settings.json` does not exist, write nothing. If it exists (a re-run may find an earlier `draft`), remove the key with `jq`, dropping `pr` if it is left empty:
+
+```bash
+SETTINGS="$(git rev-parse --show-toplevel)/.facto/settings.json"
+[[ -f "$SETTINGS" ]] && jq 'if (.pr|type) == "object" then del(.pr.initial_state) | if .pr == {} then del(.pr) else . end else . end' "$SETTINGS" > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS"
+```
+
+**If draft:** merge a top-level `"pr": { "initial_state": "draft" }` into `.facto/settings.json` at the repo root (`git rev-parse --show-toplevel`), creating the file as `{}` first if it does not exist. Merge with `jq` so every other key is kept — never overwrite the file:
+
+```bash
+SETTINGS="$(git rev-parse --show-toplevel)/.facto/settings.json"
+mkdir -p "$(dirname "$SETTINGS")"
+[[ -f "$SETTINGS" ]] || echo '{}' > "$SETTINGS"
+jq 'if (.pr|type) != "object" then .pr = {} else . end | .pr.initial_state = "draft"' "$SETTINGS" > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS"
+```
+
+A `settings.json` with no `tracker` key is valid; `facto-helper.sh tracker.exists` still reports no tracker.
+
 ## Phase 4: Worktree hook stubs (per-project, optional)
 
 Ask whether this repo needs per-task setup/teardown (install deps, copy `.env`, run migrations, start/stop services, free ports). If yes, create stub hooks in the repo's `.facto/` dir (don't overwrite existing ones):
@@ -183,4 +209,5 @@ PATH/alias changes only take effect in new shells. Report to the user:
 
 - The profile file the PATH block went in, and that they should open a new terminal (or `source` it) for `task-start`/`task-list`/`task-end` to work.
 - Which tracker was configured, if any, and what was written to `.facto/settings.json`. Verify it parses with `facto-helper.sh tracker.field type`, which should print the configured type. Then check a tracker-specific field: `tracker.field repo` prints the repo slug on GitHub Issues; `tracker.field team` prints the team name on Linear. For Linear, also restate that the MCP server must be authenticated and that `/facto:observe` is unavailable.
+- If Phase 3c wrote the PR initial state, verify it with `facto-helper.sh pr-initial-state`, which should print `draft`.
 - Which worktree hook stubs were created, if any.
