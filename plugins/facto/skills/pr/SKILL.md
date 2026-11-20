@@ -171,9 +171,9 @@ gh pr view --json number,url,state 2>/dev/null
 ```
 
 - **If a PR exists and its state is `OPEN`:** update it using the targeted-edit process below.
-- **If a PR exists and its state is `MERGED`:** ignore it and create a new one with `gh pr create` — the previous PR is no longer active.
-- **If a PR exists and its state is `CLOSED`:** ask the user what they want to do — reopen the existing PR (`gh pr reopen <number>`), create a new one, or stop.
-- **If no PR exists:** create one with `gh pr create` using the body structure below, plus the "Active Issue link + Status write" section that follows.
+- **If a PR exists and its state is `MERGED`:** ignore it and create a new one with `gh pr create` — the previous PR is no longer active. Apply "Initial state (first creation only)" below.
+- **If a PR exists and its state is `CLOSED`:** ask the user what they want to do — reopen the existing PR (`gh pr reopen <number>`), create a new one, or stop. If they choose to create a new one, apply "Initial state (first creation only)" below.
+- **If no PR exists:** create one with `gh pr create` using the body structure below, plus the "Initial state (first creation only)" and "Active Issue link + Status write" sections that follow.
 
 ### Updating an existing open PR
 
@@ -190,7 +190,19 @@ Do this in a single pass — fetch the body once, edit once, and do not re-read 
    - **Screenshots section (targeted edit):** Treat `## Screenshots` like any other section under the never-regenerate rule. If Phase 4 produced screenshots and the body has no Screenshots section, add one (captured form). If a Screenshots section already exists, refresh only its directory pointer and file list to match the currently committed screenshots. If the change is non-visual, leave the body's Screenshots handling untouched. Preserve all other manual edits verbatim.
 4. Apply with a single `gh pr edit <number> --body "..."`. Do not fetch the body again to confirm.
 
-**Update path — explicit no-write rule:** Do **not** insert or modify any `Resolves #N` line on the update path, and do **not** set Project Status. Update-path Status changes are handled by other automation (or by the developer), not here. This preserves the "never regenerate the body" invariant against manual edits.
+**Update path — explicit no-write rule:** Do **not** insert or modify any `Resolves #N` line on the update path, do **not** set Project Status, and do **not** change the PR's draft/open state. Update-path Status changes are handled by other automation (or by the developer), not here. This preserves the "never regenerate the body" invariant against manual edits.
+
+### Initial state (first creation only)
+
+Whether a new PR starts as a draft is a per-repo setting (`.pr.initial_state` in `.facto/settings.json`). Before invoking `gh pr create`, read it:
+
+```bash
+facto-helper.sh pr-initial-state
+```
+
+It prints `draft` or `open`. If it prints `draft`, add `--draft` to `gh pr create`; if it prints `open`, add nothing. This applies to every path that runs `gh pr create` — no PR exists, the previous PR is `MERGED`, or the user chose to create a new one after a `CLOSED` PR.
+
+Only creation sets the state. The update path and the reopen path (`gh pr reopen`) never change whether a PR is a draft, and this skill never marks a PR ready or converts it back to a draft. A draft PR still gets the `in_review` Status write below — a draft is still a solution up in a PR.
 
 ### Active Issue link + Status write (first creation only)
 
@@ -253,6 +265,7 @@ Fill the `## Screenshots` section using the outcome of **Phase 4 (Capture Screen
 Report to the user:
 - Whether the PR was **created** or **updated**
 - The PR URL
+- If **created**, whether it was created as a draft or as open
 - The PR title
 - A one-line summary of what the PR covers
 - If `/facto:commit-or-amend` was run in Phase 1, list what happened — one line per commit that was added or amended, e.g.:
