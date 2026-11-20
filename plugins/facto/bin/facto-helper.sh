@@ -36,6 +36,10 @@ set -euo pipefail
 #                                command. Keyed on whether origin/<branch> exists — NOT on @{u}, which
 #                                on a task-start.sh branch points at origin/<main>. Read-only, but
 #                                unlike every other subcommand it makes one network call (git ls-remote).
+#   pr-initial-state           — print "draft" or "open": the state facto:pr gives a newly created PR,
+#                                from .pr.initial_state in .facto/settings.json. Missing file, absent
+#                                key, malformed JSON, or an unknown value or non-object "pr" key
+#                                (both warned on stderr) → "open"
 
 # Parse optional --root <path> flag before the subcommand
 EXPLICIT_ROOT=""
@@ -296,6 +300,40 @@ if [[ "$subcommand" == "push-plan" ]]; then
   exit 0
 fi
 
+# ──────────────────────────────────────────────────────────────────────────────
+# pr-initial-state — whether facto:pr creates a new PR as a draft. Reads the
+# top-level .pr.initial_state ("draft" | "open"). Config-free like task-dir: a
+# missing file, an absent or null key, or malformed JSON all mean "open". An
+# unknown value, or a "pr" key that is not an object, warns on stderr and also
+# means "open" — a typo must never block PR creation.
+# ──────────────────────────────────────────────────────────────────────────────
+if [[ "$subcommand" == "pr-initial-state" ]]; then
+  state=""
+  pr_type=""
+  if [[ -f "$CONFIG" ]]; then
+    pr_type="$(jq -r '.pr | type' "$CONFIG" 2>/dev/null)" || pr_type=""
+  fi
+  case "$pr_type" in
+    object)
+      # tostring so a non-string value (false, 1, …) reaches the warning below
+      state="$(jq -r '.pr.initial_state | if . == null then empty else tostring end' "$CONFIG" 2>/dev/null)" || state=""
+      ;;
+    ""|null) ;;
+    *)
+      echo "WARNING: .pr must be an object like {\"initial_state\": \"draft\"}; got a $pr_type — using \"open\"" >&2
+      ;;
+  esac
+  case "$state" in
+    draft|open) echo "$state" ;;
+    "")         echo "open" ;;
+    *)
+      echo "WARNING: .pr.initial_state must be \"draft\" or \"open\"; got \"$state\" — using \"open\"" >&2
+      echo "open"
+      ;;
+  esac
+  exit 0
+fi
+
 # All remaining subcommands need the config to exist
 if [[ ! -f "$CONFIG" ]]; then
   echo "ERROR: .facto/settings.json not found at $CONFIG" >&2
@@ -406,5 +444,5 @@ fi
 # Unknown subcommand
 # ──────────────────────────────────────────────────────────────────────────────
 echo "ERROR: unknown subcommand '$subcommand'" >&2
-echo "Usage: facto-helper.sh [--root <path>] tracker.exists | tracker.field <path> | current-issue | task-slug | task-dir | push-plan" >&2
+echo "Usage: facto-helper.sh [--root <path>] tracker.exists | tracker.field <path> | current-issue | task-slug | task-dir | push-plan | pr-initial-state" >&2
 exit 1
