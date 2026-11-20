@@ -10,9 +10,12 @@
 # behaviorally tested in plugins/facto/bin/tests/facto-helper.test.sh.
 #
 # This suite guards the SKILL.md side of that fix: that the skill delegates,
-# and that the broken check has not been re-inlined into the prose. It is a
-# structural test and cannot prove the model follows the prose correctly — the
-# real correctness guarantee is the behavioral suite named above.
+# and that the broken check has not been re-inlined into the prose. It also
+# guards the draft/open setting for new PRs: that Phase 6 reads it through
+# `facto-helper.sh pr-initial-state`, and that no path flips an existing PR's
+# draft state. It is a structural test and cannot prove the model follows the
+# prose correctly — the real correctness guarantee is the behavioral suite
+# named above.
 #
 # These assertions are pinned to specific marker phrases in SKILL.md today.
 # A future prose edit should either preserve those markers or update this
@@ -104,6 +107,50 @@ if grep -q 'Never wrap `git push` in `bash -c' "$_SKILL"; then
   pass "the 'never wrap git push in bash -c' rule survived"
 else
   fail "the 'never wrap git push in bash -c' rule was dropped"
+fi
+
+# ── Case 7: new PRs read the draft/open setting through the helper ─────────
+# The default and validation live in `facto-helper.sh pr-initial-state` (tested
+# behaviorally in facto-helper.test.sh); the skill must call it, not re-read
+# settings.json itself.
+if _code_lines | grep -q 'facto-helper.sh pr-initial-state'; then
+  pass "Phase 6 invokes facto-helper.sh pr-initial-state"
+else
+  fail "no runnable 'facto-helper.sh pr-initial-state' call found in a bash block"
+fi
+
+if grep -qF 'If it prints `draft`, add `--draft` to `gh pr create`' "$_SKILL"; then
+  pass "a draft setting adds --draft to gh pr create"
+else
+  fail "the rule mapping 'draft' to 'gh pr create --draft' is missing"
+fi
+
+# Every create path must point at the Initial state section.
+if grep -F '**If a PR exists and its state is `MERGED`:**' "$_SKILL" | grep -qF 'Initial state (first creation only)' \
+  && grep -F '**If a PR exists and its state is `CLOSED`:**' "$_SKILL" | grep -qF 'Initial state (first creation only)' \
+  && grep -F '**If no PR exists:**' "$_SKILL" | grep -qF 'Initial state (first creation only)'; then
+  pass "all three create paths reference the Initial state section"
+else
+  fail "a create path (no PR, MERGED, or CLOSED → new) does not reference the Initial state section"
+fi
+
+if grep -qF 'A draft PR still gets the `in_review` Status write' "$_SKILL"; then
+  pass "draft PRs still get the in_review Status write"
+else
+  fail "the rule that draft PRs still get the in_review Status write is missing"
+fi
+
+# ── Case 8: the skill never flips an existing PR's draft/open state ────────
+if ! _code_lines | grep -q 'gh pr ready'; then
+  pass "no runnable gh pr ready call"
+else
+  fail "a gh pr ready call appears in a bash block: $(_code_lines | grep 'gh pr ready' | head -1)"
+fi
+
+if grep -q "do \*\*not\*\* change the PR's draft/open state" "$_SKILL"; then
+  pass "the update path forbids changing draft/open state"
+else
+  fail "the update-path rule against changing draft/open state is missing"
 fi
 
 # ── Tally ───────────────────────────────────────────────────────────────────

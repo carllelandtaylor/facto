@@ -176,6 +176,18 @@ Two things to know before choosing Linear:
 
 Facto has five lifecycle states, and your tracker may not have a counterpart for each. `status_values` maps Facto's keys onto whatever states actually exist, and more than one key may point at the same state — no Linear team has an equivalent of Facto's *In test*, for instance. `/facto:setup-facto` enumerates your team's real states and asks how to map the gaps.
 
+#### Draft or open PRs
+
+By default, `/facto:pr` opens the PRs it creates. To have it create them as drafts instead, add a top-level `pr` key to your project's `.facto/settings.json` (`/facto:setup-facto` asks about this):
+
+```json
+{
+  "pr": { "initial_state": "draft" }
+}
+```
+
+`initial_state` is `"draft"` or `"open"`; leaving the key out means open. The setting only applies when `/facto:pr` creates a PR — updating or reopening a PR never changes whether it is a draft.
+
 #### Customizing worktree setup/teardown for isolation and resource management
 
 When you run `/facto:setup-facto` in your project, it will help you set up some Facto settings and optionally create your custom setup and teardown scripts:

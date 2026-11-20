@@ -4,10 +4,11 @@
 # Covers the three subcommands whose behavior depends on which tracker the
 # host repo is configured for: task-slug (slug normalization), task-dir (the
 # tasks_dir override), and current-issue (identifier extraction from the
-# branch). The load-bearing case is a Linear identifier — "sio-9-foo" is a
-# valid issue-backed slug and must not be prefixed with "UNKNOWN-", and the
-# identifier it yields must come back uppercased to match Linear's canonical
-# form.
+# branch). Also covers pr-initial-state (the draft/open setting for new PRs)
+# and push-plan (the push decision). The load-bearing case is a Linear
+# identifier — "sio-9-foo" is a valid issue-backed slug and must not be
+# prefixed with "UNKNOWN-", and the identifier it yields must come back
+# uppercased to match Linear's canonical form.
 #
 # Sets up a throwaway git repo and writes .facto/settings.json variants into
 # it. Each case runs in a subshell so the parent CWD is not polluted. Creates
@@ -217,6 +218,111 @@ if [[ "$_OUT" == "$_TMP/facto-tasks/sio-12-some-work" ]]; then
 else
   fail "task-dir sio-12-some-work — expected '$_TMP/facto-tasks/sio-12-some-work', got '$_OUT'"
 fi
+
+# ════════════════════════════════════════════════════════════════════════════
+# pr-initial-state — whether facto:pr creates a new PR as a draft
+# ════════════════════════════════════════════════════════════════════════════
+#
+# Anything other than an explicit "draft" must resolve to "open" with exit 0,
+# so an absent or broken setting never changes today's behavior or blocks PR
+# creation.
+
+# Write raw content to settings.json (or remove it when given no argument).
+_write_raw_config() {
+  if [[ $# -eq 0 ]]; then
+    rm -f "$_TMP/.facto/settings.json"
+  else
+    printf '%s\n' "$1" > "$_TMP/.facto/settings.json"
+  fi
+}
+
+# ── Case S1: no settings.json at all → open ─────────────────────────────────
+_write_raw_config
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "open" ]]; then
+  pass "pr-initial-state: missing settings.json → open"
+else
+  fail "pr-initial-state missing settings.json — expected 'open' rc 0, got '$_OUT' rc $_RC"
+fi
+
+# ── Case S2: settings.json with no pr key → open ────────────────────────────
+_write_config github
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "open" ]]; then
+  pass "pr-initial-state: absent pr key → open"
+else
+  fail "pr-initial-state absent key — expected 'open' rc 0, got '$_OUT' rc $_RC"
+fi
+
+# ── Case S3: initial_state draft → draft ────────────────────────────────────
+_write_raw_config '{"pr": {"initial_state": "draft"}}'
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "draft" ]]; then
+  pass "pr-initial-state: draft → draft"
+else
+  fail "pr-initial-state draft — expected 'draft' rc 0, got '$_OUT' rc $_RC"
+fi
+
+# ── Case S4: initial_state open → open ──────────────────────────────────────
+_write_raw_config '{"pr": {"initial_state": "open"}}'
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "open" ]]; then
+  pass "pr-initial-state: open → open"
+else
+  fail "pr-initial-state open — expected 'open' rc 0, got '$_OUT' rc $_RC"
+fi
+
+# ── Case S5: an unknown value warns on stderr and falls back to open ────────
+_write_raw_config '{"pr": {"initial_state": "Draft"}}'
+_S5_ERR="$(cd "$_TMP" && "$_SCRIPT_UNDER_TEST" pr-initial-state 2>&1 >/dev/null)"
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "open" && "$_S5_ERR" == *'WARNING: .pr.initial_state must be "draft" or "open"; got "Draft"'* ]]; then
+  pass "pr-initial-state: unknown value warns and falls back to open"
+else
+  fail "pr-initial-state unknown value — expected 'open' rc 0 plus a warning, got '$_OUT' rc $_RC stderr '$_S5_ERR'"
+fi
+
+# ── Case S6: malformed JSON → open ──────────────────────────────────────────
+_write_raw_config '{"pr": {"initial_state": '
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "open" ]]; then
+  pass "pr-initial-state: malformed JSON → open"
+else
+  fail "pr-initial-state malformed JSON — expected 'open' rc 0, got '$_OUT' rc $_RC"
+fi
+
+# ── Case S7: a null value → open, no warning ────────────────────────────────
+_write_raw_config '{"pr": {"initial_state": null}}'
+_S7_ERR="$(cd "$_TMP" && "$_SCRIPT_UNDER_TEST" pr-initial-state 2>&1 >/dev/null)"
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "open" && -z "$_S7_ERR" ]]; then
+  pass "pr-initial-state: null value → open, silently"
+else
+  fail "pr-initial-state null — expected 'open' rc 0 and no stderr, got '$_OUT' rc $_RC stderr '$_S7_ERR'"
+fi
+
+# ── Case S8: a pr key that is not an object warns and falls back to open ────
+_write_raw_config '{"pr": "draft"}'
+_S8_ERR="$(cd "$_TMP" && "$_SCRIPT_UNDER_TEST" pr-initial-state 2>&1 >/dev/null)"
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "open" && "$_S8_ERR" == *'WARNING: .pr must be an object'* ]]; then
+  pass "pr-initial-state: non-object pr key warns and falls back to open"
+else
+  fail "pr-initial-state non-object pr — expected 'open' rc 0 plus a warning, got '$_OUT' rc $_RC stderr '$_S8_ERR'"
+fi
+
+# ── Case S9: a non-string value (false) warns and falls back to open ────────
+_write_raw_config '{"pr": {"initial_state": false}}'
+_S9_ERR="$(cd "$_TMP" && "$_SCRIPT_UNDER_TEST" pr-initial-state 2>&1 >/dev/null)"
+_run pr-initial-state
+if [[ "$_RC" -eq 0 && "$_OUT" == "open" && "$_S9_ERR" == *'got "false"'* ]]; then
+  pass "pr-initial-state: non-string value warns and falls back to open"
+else
+  fail "pr-initial-state false — expected 'open' rc 0 plus a warning, got '$_OUT' rc $_RC stderr '$_S9_ERR'"
+fi
+
+# Leave a valid config behind so later cases do not inherit the malformed one.
+_write_config github
 
 # ════════════════════════════════════════════════════════════════════════════
 # push-plan — the push decision (Issue #116)
